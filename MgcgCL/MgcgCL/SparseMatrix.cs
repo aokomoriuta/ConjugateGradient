@@ -8,17 +8,19 @@
 		/// <summary>
 		/// 各要素
 		/// </summary>
-		readonly double[,] elements;
+		internal readonly double[] Elements;
 
 		/// <summary>
 		/// その要素の列番号
 		/// </summary>
-		readonly long[,] columnIndeces;
+		internal readonly long[] ColumnIndeces;
 
 		/// <summary>
 		/// その行の非ゼロ要素数
 		/// </summary>
-		readonly long[] nonzeroCounts;
+		internal readonly long[] NonzeroCounts;
+
+		public readonly long MaxNonzeroCountPerRow;
 
 		/// <summary>
 		/// 疎行列を生成する
@@ -28,11 +30,14 @@
 		public SparseMatrix(long rowCount, long maxNonzeroCountPerRow)
 		{
 			// 要素と列番号配列を初期化
-			this.elements = new double[rowCount, maxNonzeroCountPerRow];
-			this.columnIndeces = new long[rowCount, maxNonzeroCountPerRow];
+			this.Elements = new double[rowCount* maxNonzeroCountPerRow];
+			this.ColumnIndeces = new long[rowCount* maxNonzeroCountPerRow];
 
 			// 非ゼロ要素数を初期化
-			this.nonzeroCounts = new long[rowCount];
+			this.NonzeroCounts = new long[rowCount];
+
+			// 1行あたりの最大非ゼロ要素数を設定
+			this.MaxNonzeroCountPerRow = maxNonzeroCountPerRow;
 		}
 
 		/// <summary>
@@ -41,10 +46,10 @@
 		public void Clear()
 		{
 			// すべての非ゼロ要素数を
-			for(long i = 0; i < nonzeroCounts.Length; i++)
+			for(long i = 0; i < NonzeroCounts.Length; i++)
 			{
 				// ゼロにする
-				this.nonzeroCounts[i] = 0;
+				this.NonzeroCounts[i] = 0;
 			}
 		}
 
@@ -60,13 +65,13 @@
 			get
 			{
 				// 要素番号を取得
-				long k = this.GetElementIndex(i, j);
+				long k = this.GetLocalIndex(i, j);
 
 				// 有効な要素番号なら
 				if(k >= 0)
 				{
 					// 要素の値を返す
-					return this.elements[i, k];
+					return this.Elements[this.GetGlobalIndex(i, k)];
 				}
 
 				// それ以外はゼロ
@@ -75,40 +80,43 @@
 			set
 			{
 				// 要素番号を取得
-				long k = this.GetElementIndex(i, j);
+				long k = this.GetLocalIndex(i, j);
 
 				// 新しい要素なら
 				if(k < 0)
 				{
 					// 設定する要素番号は最後尾にする
-					k = this.nonzeroCounts[i];
+					k = this.NonzeroCounts[i];
 
 					// 列番号を設定
-					this.columnIndeces[i, k] = j;
+					this.ColumnIndeces[this.GetGlobalIndex(i, k)] = j;
 
 					// 非ゼロ要素数を1つ増やす
-					this.nonzeroCounts[i]++;
+					this.NonzeroCounts[i]++;
 				}
 
 				// その要素に値を設定
-				this.elements[i, k] = value;
+				this.Elements[this.GetGlobalIndex(i, k)] = value;
 
 			}
 		}
 
 		/// <summary>
-		/// 要素番号を返す
+		/// その行での要素番号を返す
 		/// </summary>
 		/// <param name="i">行番号</param>
 		/// <param name="j">列番号</param>
 		/// <returns>要素配列にその要素の格納されている場所</returns>
-		long GetElementIndex(long i, long j)
+		long GetLocalIndex(long i, long j)
 		{
+			// 先頭を設定
+			long first = i * this.MaxNonzeroCountPerRow;
+
 			// その行のすべての非ゼロ要素に対して
-			for(long k = 0; k < this.nonzeroCounts[i]; k++)
+			for(long k = 0; k < this.NonzeroCounts[i]; k++)
 			{
 				// 列番号が一致すれば
-				if(this.columnIndeces[i, k] == j)
+				if(this.ColumnIndeces[first + k] == j)
 				{
 					// その要素番号を返す
 					return k;
@@ -117,6 +125,17 @@
 
 			// それ以外は-1を返す
 			return -1;
+		}
+
+		/// <summary>
+		/// 全体での要素番号を返す
+		/// </summary>
+		/// <param name="i">行番号</param>
+		/// <param name="k">行内での要素番号</param>
+		/// <returns>全体での要素番号</returns>
+		long GetGlobalIndex(long i, long k)
+		{
+			return i * this.MaxNonzeroCountPerRow + k;
 		}
 
 		/// <summary>
@@ -137,16 +156,16 @@
 				if(isEnabled[i])
 				{
 					// その行のすべての非ゼロ要素に対して
-					for(long k = 0; k < this.nonzeroCounts[i]; k++)
+					for(long k = 0; k < this.NonzeroCounts[i]; k++)
 					{
 						// 列番号を取得
-						long j = this.columnIndeces[i, k];
+						long j = this.ColumnIndeces[this.GetGlobalIndex(i, k)];
 
 						// その列が有効なら
 						if(isEnabled[j])
 						{
 							// 解に積を加える
-							answer[i] += this.elements[i, k] * vector[j];
+							answer[i] += this.Elements[this.GetGlobalIndex(i, k)] * vector[j];
 						}
 					}
 				}

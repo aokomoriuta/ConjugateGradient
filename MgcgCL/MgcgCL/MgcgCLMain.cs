@@ -14,7 +14,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int maxNonzeroCount = count;
+		const int maxNonzeroCount = 7;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -24,7 +24,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		const int maxiteration = count;
+		const int maxIteration = count;
 
 		/// <summary>
 		/// 収束誤差
@@ -38,7 +38,7 @@ namespace LWisteria.MgcgCL
 		static int Main()
 		{
 			// CPUでのCG法を作成
-			var cg = new ConjugateGradient(count, maxNonzeroCount, minIteration, maxNonzeroCount, allowableResidual);
+			var cg = new ConjugateGradient(count, maxNonzeroCount, minIteration, maxIteration, allowableResidual);
 
 			// 係数行列の初期化
 			for(int i = 0; i < count; i++)
@@ -53,20 +53,23 @@ namespace LWisteria.MgcgCL
 				// 各列で
 				for(int j = i+1; j < count; j++)
 				{
-					// 要素を計算
-					var a_ij = Math.Abs(Math.Sin(i*i + 2*j));
+					if ((2*i + j*j) % 3 == 0)
+					{
+						// 要素を計算
+						var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
 
-					// 要素を設定
-					cg.A[i, j] = a_ij;
-					cg.A[j, i] = a_ij;
+						// 要素を設定
+						cg.A[i, j] = a_ij;
+						cg.A[j, i] = a_ij;
 
-					// 対角成分を追加
-					cg.A[i, i] += a_ij;
-					cg.A[j, j] += a_ij;
+						// 対角成分を追加
+						cg.A[i, i] += a_ij;
+						cg.A[j, j] += a_ij;
+					}
 				}
 
 				// 生成項を設定
-				cg.b[i] = i * 0.2;
+				cg.b[i] = i;
 			}
 
 			// 各行で
@@ -84,7 +87,7 @@ namespace LWisteria.MgcgCL
 			}
 
 			// OpenCLで解く
-			//cg.SolveCL();
+			cg.SolveCL();
 
 
 			// 変数ベクトルを
