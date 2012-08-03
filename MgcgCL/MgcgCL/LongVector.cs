@@ -1,0 +1,49 @@
+﻿namespace LWisteria.MgcgCL.LongVector
+{
+	/// <summary>
+	/// 多次元ベクトルに対する拡張メソッド群
+	/// </summary>
+	static class LongVectorExtensions
+	{
+		/// <summary>
+		/// ベクトルの内積を計算する
+		/// </summary>
+		/// <param name="left">左ベクトル</param>
+		/// <param name="right">右ベクトル</param>
+		/// <returns>各要素の積和</returns>
+		public static double Dot(this double[] left, double[] right)
+		{
+			// 解
+			double answer = 0.0;
+
+			// 全要素について
+			for(int i = 0; i < left.Length; i++)
+			{
+				// 各要素をかけたものを解に追加
+				answer += left[i] * right[i];
+			}
+
+			// 解を返す
+			return answer;
+		}
+
+
+
+		/// <summary>
+		/// 右ベクトルにスカラー係数をかけてのベクトルの加算を計算し、結果を解に格納する
+		/// </summary>
+		/// <param name="answer">演算結果を格納するベクトル</param>
+		/// <param name="left">左ベクトル</param>
+		/// <param name="right">右ベクトル</param>
+		/// <param name="a">係数</param>
+		public static void SetAdded(this double[] answer, double[] left, double[] right, double a)
+		{
+			// 全要素について
+			for(int i = 0; i < answer.Length; i++)
+			{
+				// 答えベクトルを計算
+				answer[i] = left[i] + a * right[i];
+			}
+		}
+	}
+}
