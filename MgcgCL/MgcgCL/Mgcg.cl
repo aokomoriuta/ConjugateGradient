@@ -58,14 +58,15 @@ __kernel void MultiplyEachVector(
 
 }
 
-//! Add each values at a vector's second half to its first half
+//! Add each values on second half of a row to its first half
 /*!
-	\param count size of vector
+	\param count size of column
+	\param maxCount maximum size of one column
 	\param target vector
 */
 __kernel void AddVectorSecondHalfToFirstHalf(
 	const long count,
-	const long maxNonzeroCount,
+	const long maxCount,
 	__global double* values)
 {
 	// get number and index
@@ -73,13 +74,13 @@ __kernel void AddVectorSecondHalfToFirstHalf(
 	long globalIndexJ = get_global_id(1);
 	long globalSizeJ = get_global_size(1);
 
-	long globalIndex = globalIndexI*maxNonzeroCount + globalIndexJ;
+	long globalIndex = globalIndexI*maxCount + globalIndexJ;
 
 	// calculate latter index
 	long nextIndex = globalIndex + globalSizeJ;
 
 	// only in vector's size
-	if(nextIndex < globalIndexI*maxNonzeroCount+count)
+	if(nextIndex < globalIndexI*maxCount+count)
 	{
 		// add second half value to this
 		values[globalIndex] += values[nextIndex];

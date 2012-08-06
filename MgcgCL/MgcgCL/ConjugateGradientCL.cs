@@ -24,6 +24,7 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		double allowableResidual2;
 
+
 		/// <summary>
 		/// コマンドキュー
 		/// </summary>
@@ -118,6 +119,7 @@ namespace LWisteria.MgcgCL
 		ComputeBuffer<double> bufferForMatrix_x_Vector;
 		#endregion
 
+
 		/// <summary>
 		/// 共役勾配法を生成する
 		/// </summary>
@@ -188,6 +190,7 @@ namespace LWisteria.MgcgCL
 			multiplyMatrixVectorKernel = program.CreateKernel("MultiplyMatrixVector");
 			columnVectorToRowKernel = program.CreateKernel("ColumnVectorToRow");
 		}
+
 
 		/// <summary>
 		/// OpenCLを使って方程式を解く
@@ -277,102 +280,22 @@ namespace LWisteria.MgcgCL
 			queue.Finish();
 		}
 
-		/// <summary>
-		/// 行列とベクトルの積を計算する
-		/// </summary>
-		/// <param name="answer">解の代入先</param>
-		/// <param name="matrix">行列</param>
-		/// <param name="columnIndeces">列番号</param>
-		/// <param name="nonzeroCounts">非ゼロ要素数</param>
-		/// <param name="vector">ベクトル</param>
-		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<long> columnIndeces, ComputeBuffer<long> nonzeroCounts, ComputeBuffer<double> vector)
-		{
-			// 各要素同士の掛け算を実行
-			//  # 解を格納するベクトル
-			//  # 掛けられる値
-			//  # 掛ける値
-			multiplyMatrixVectorKernel.SetMemoryArgument(0, bufferForMatrix_x_Vector);
-			multiplyMatrixVectorKernel.SetMemoryArgument(1, matrix);
-			multiplyMatrixVectorKernel.SetMemoryArgument(2, columnIndeces);
-			multiplyMatrixVectorKernel.SetMemoryArgument(3, nonzeroCounts);
-			multiplyMatrixVectorKernel.SetMemoryArgument(4, vector);
-			queue.Execute(multiplyMatrixVectorKernel, null, new long[] { this.Count, this.A.MaxNonzeroCountPerRow }, null, null);
-
-			// 以前の大きさを設定
-			long oldSize = this.A.MaxNonzeroCountPerRow;
-
-			// リダクションの計算が終了するまで書く大きさで
-			for(long size = oldSize / 2; size > 0; size /= 2)
-			{
-				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				size += (oldSize % 2 == 1) ? 1 : 0;
-
-				// 後半の値を前半の値に加える（リダクション）
-				//  # 対象となる大きさ
-				//  # 操作対象のベクトル
-				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
-				addSecondHalfToFirstHalfKernel.SetValueArgument(1, this.A.MaxNonzeroCountPerRow);
-				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForMatrix_x_Vector);
-				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { this.Count, size }, null, null);
-
-				// 今回の大きさを保存
-				oldSize = size;
-			}
-
-			// 縦ベクトルを横ベクトルに変換して、結果に格納
-			//  # 配列
-			//  # 行列
-			//  # 行列の列数
-			columnVectorToRowKernel.SetMemoryArgument(0, answer);
-			columnVectorToRowKernel.SetMemoryArgument(1, bufferForMatrix_x_Vector);
-			columnVectorToRowKernel.SetValueArgument(2, this.A.MaxNonzeroCountPerRow);
-			queue.Execute(columnVectorToRowKernel, null, new long[] { this.Count }, null, null);
-		}
 
 		/// <summary>
-		/// ベクトルの内積を計算する
+		/// ベクトルの値をすべて指定した値にして初期化する
 		/// </summary>
-		/// <param name="left">掛けられるベクトル</param>
-		/// <param name="right">掛けるベクトル</param>
-		/// <returns>内積（要素同士の積の和）</returns>
-		double VectorDotVector(ComputeBuffer<double> left, ComputeBuffer<double> right)
+		/// <param name="vector">初期化するベクトル</param>
+		/// <param name="value">代入値</param>
+		void InitializeVector(ComputeBuffer<double> vector, double value = 0)
 		{
-			// 各要素同士の掛け算を実行
-			//  # 解を格納するベクトル
-			//  # 掛けられる値
-			//  # 掛ける値
-			multiplyEachVectorKernel.SetMemoryArgument(0, bufferForDot);
-			multiplyEachVectorKernel.SetMemoryArgument(1, left);
-			multiplyEachVectorKernel.SetMemoryArgument(2, right);
-			queue.Execute(multiplyEachVectorKernel, null, new long[] { this.Count }, null, null);
-
-			// 以前の大きさを設定
-			long oldSize = this.Count;
-
-			// リダクションの計算が終了するまで書く大きさで
-			for(long size = oldSize / 2; size > 0; size /= 2)
-			{
-				// 前の大きさが奇数だった場合は大きさを1つ増やす
-				size += (oldSize % 2 == 1) ? 1 : 0;
-
-				// 後半の値を前半の値に加える（リダクション）
-				//  # 対象となる大きさ
-				//  # 操作対象のベクトル
-				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
-				addSecondHalfToFirstHalfKernel.SetValueArgument(1, 1L);
-				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForDot);
-				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { 1, size }, null, null);
-
-				// 今回の大きさを保存
-				oldSize = size;
-			}
-
-			// 結果を取得
-			queue.ReadFromBuffer(bufferForDot, ref answerForDot, true, 0, 0, 1, null);
-
-			// 結果を返す
-			return answerForDot[0];
+			// 各要素同士の足し算を実行
+			//  # 初期化先のベクトル
+			//  # 初期値
+			setAllVectorKernel.SetMemoryArgument(0, vector);
+			setAllVectorKernel.SetValueArgument(1, value);
+			queue.Execute(setAllVectorKernel, null, new long[] { this.Count }, null, null);
 		}
+
 
 		/// <summary>
 		/// ベクトル同士の和を計算する
@@ -395,19 +318,97 @@ namespace LWisteria.MgcgCL
 			queue.Execute(plusEachVectorKernel, null, new long[] { this.Count }, null, null);
 		}
 
+
 		/// <summary>
-		/// ベクトルの値をすべて指定した値にして初期化する
+		/// ベクトルの内積を計算する
 		/// </summary>
-		/// <param name="vector">初期化するベクトル</param>
-		/// <param name="value">代入値</param>
-		void InitializeVector(ComputeBuffer<double> vector, double value = 0)
+		/// <param name="left">掛けられるベクトル</param>
+		/// <param name="right">掛けるベクトル</param>
+		/// <returns>内積（要素同士の積の和）</returns>
+		double VectorDotVector(ComputeBuffer<double> left, ComputeBuffer<double> right)
 		{
-			// 各要素同士の足し算を実行
-			//  # 初期化先のベクトル
-			//  # 初期値
-			setAllVectorKernel.SetMemoryArgument(0, vector);
-			setAllVectorKernel.SetValueArgument(1, value);
-			queue.Execute(setAllVectorKernel, null, new long[] { this.Count }, null, null);
+			// 各要素同士の掛け算を実行
+			//  # 解を格納するベクトル
+			//  # 掛けられる値
+			//  # 掛ける値
+			multiplyEachVectorKernel.SetMemoryArgument(0, bufferForDot);
+			multiplyEachVectorKernel.SetMemoryArgument(1, left);
+			multiplyEachVectorKernel.SetMemoryArgument(2, right);
+			queue.Execute(multiplyEachVectorKernel, null, new long[] { this.Count }, null, null);
+
+			// リダクションで和をとる
+			SumEachRow(1, this.Count, bufferForDot);
+
+			// 結果を取得
+			queue.ReadFromBuffer(bufferForDot, ref answerForDot, true, 0, 0, 1, null);
+
+			// 結果を返す
+			return answerForDot[0];
+		}
+
+		/// <summary>
+		/// 行列とベクトルの積を計算する
+		/// </summary>
+		/// <param name="answer">解の代入先</param>
+		/// <param name="matrix">行列</param>
+		/// <param name="columnIndeces">列番号</param>
+		/// <param name="nonzeroCounts">非ゼロ要素数</param>
+		/// <param name="vector">ベクトル</param>
+		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<long> columnIndeces, ComputeBuffer<long> nonzeroCounts, ComputeBuffer<double> vector)
+		{
+			// 各要素同士の掛け算を実行
+			//  # 解を格納するベクトル
+			//  # 掛けられる値
+			//  # 掛ける値
+			multiplyMatrixVectorKernel.SetMemoryArgument(0, bufferForMatrix_x_Vector);
+			multiplyMatrixVectorKernel.SetMemoryArgument(1, matrix);
+			multiplyMatrixVectorKernel.SetMemoryArgument(2, columnIndeces);
+			multiplyMatrixVectorKernel.SetMemoryArgument(3, nonzeroCounts);
+			multiplyMatrixVectorKernel.SetMemoryArgument(4, vector);
+			queue.Execute(multiplyMatrixVectorKernel, null, new long[] { this.Count, this.A.MaxNonzeroCountPerRow }, null, null);
+
+			// リダクションで各行の和をとる
+			SumEachRow(this.Count, this.A.MaxNonzeroCountPerRow, bufferForMatrix_x_Vector);
+
+			// 縦ベクトルを横ベクトルに変換して、結果に格納
+			//  # 配列
+			//  # 行列
+			//  # 行列の列数
+			columnVectorToRowKernel.SetMemoryArgument(0, answer);
+			columnVectorToRowKernel.SetMemoryArgument(1, bufferForMatrix_x_Vector);
+			columnVectorToRowKernel.SetValueArgument(2, this.A.MaxNonzeroCountPerRow);
+			queue.Execute(columnVectorToRowKernel, null, new long[] { this.Count }, null, null);
+		}
+
+		/// <summary>
+		/// 行列の各行で総和を計算する
+		/// </summary>
+		/// <param name="rowCount">行数</param>
+		/// <param name="columnCount">列数</param>
+		/// <param name="target">総和をとる対象の行列</param>
+		void SumEachRow(long rowCount, long columnCount, ComputeBuffer<double> target)
+		{
+			// 以前の大きさを設定
+			long oldSize = columnCount;
+
+			// リダクションの計算が終了するまで書く大きさで
+			for (long thisSize = oldSize / 2; thisSize > 0; thisSize /= 2)
+			{
+				// 前の大きさが奇数だった場合は1つ上の偶数にする
+				thisSize += (oldSize % 2 == 1) ? 1 : 0;
+
+				// 後半の値を前半の値に加える（リダクション）
+				//  # 今回計算する要素数
+				//  # 1行あたりの要素数
+				//  # 総和を実行する対象
+				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
+				addSecondHalfToFirstHalfKernel.SetValueArgument(1, columnCount);
+				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, target);
+				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { rowCount, thisSize }, null, null);
+
+				// 今回の大きさを保存
+				oldSize = thisSize;
+			}
 		}
 	}
 }
