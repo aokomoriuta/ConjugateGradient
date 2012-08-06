@@ -24,31 +24,99 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		double allowableResidual2;
 
-
+		/// <summary>
+		/// コマンドキュー
+		/// </summary>
 		ComputeCommandQueue queue;
 
+		#region カーネル
+		/// <summary>
+		/// ベクトルの要素を設定する
+		/// </summary>
 		ComputeKernel setAllVectorKernel;
-		ComputeKernel plusEachVectorKernel;
-		ComputeKernel multiplyEachVectorKernel;
-		ComputeKernel addVectorSecondHalfToFirstHalfKernel;
-		ComputeKernel multiplyMatrixVectorKernel;
-		ComputeKernel columnVectorToRowKernel;
 
-		// バッファーを作成
+		/// <summary>
+		/// ベクトルの各要素を加算する
+		/// </summary>
+		ComputeKernel plusEachVectorKernel;
+
+		/// <summary>
+		/// ベクトルとベクトルの各要素の積算をする
+		/// </summary>
+		ComputeKernel multiplyEachVectorKernel;
+
+		/// <summary>
+		/// 行列とベクトルの各要素の積算をする
+		/// </summary>
+		ComputeKernel multiplyMatrixVectorKernel;
+
+		/// <summary>
+		/// 前半部分を後半部分に足す
+		/// </summary>
+		ComputeKernel addSecondHalfToFirstHalfKernel;
+
+		/// <summary>
+		/// 縦ベクトルを横ベクトルにする
+		/// </summary>
+		ComputeKernel columnVectorToRowKernel;
+		#endregion
+
+		#region バッファー
+		/// <summary>
+		/// 係数行列
+		/// </summary>
 		ComputeBuffer<double> bufferA;
+
+		/// <summary>
+		/// 列番号
+		/// </summary>
 		ComputeBuffer<long> bufferAColumnIndeces;
+		
+		/// <summary>
+		/// 非ゼロ要素数
+		/// </summary>
 		ComputeBuffer<long> bufferANonzeroCounts;
+
+		/// <summary>
+		/// 生成項
+		/// </summary>
 		ComputeBuffer<double> bufferB;
+
+		/// <summary>
+		/// 未知数
+		/// </summary>
 		ComputeBuffer<double> bufferX;
+
+		/// <summary>
+		/// 係数行列と探索方向ベクトルの積
+		/// </summary>
 		ComputeBuffer<double> bufferAp;
+
+		/// <summary>
+		/// 探索方向
+		/// </summary>
 		ComputeBuffer<double> bufferP;
+
+		/// <summary>
+		/// 残差
+		/// </summary>
 		ComputeBuffer<double> bufferR;
 
-		// 計算に使うバッファーを作成
+		/// <summary>
+		/// 内積計算に使うバッファー
+		/// </summary>
 		ComputeBuffer<double> bufferForDot;
-		double[] answerForDot;
-		ComputeBuffer<double> bufferForMatrix_x_Vector;
 
+		/// <summary>
+		/// 内積の解
+		/// </summary>
+		double[] answerForDot;
+
+		/// <summary>
+		/// 行列とベクトルの積の計算に使うバッファー
+		/// </summary>
+		ComputeBuffer<double> bufferForMatrix_x_Vector;
+		#endregion
 
 		/// <summary>
 		/// 共役勾配法を生成する
@@ -116,7 +184,7 @@ namespace LWisteria.MgcgCL
 			setAllVectorKernel = program.CreateKernel("SetAllVector");
 			plusEachVectorKernel = program.CreateKernel("PlusEachVector");
 			multiplyEachVectorKernel = program.CreateKernel("MultiplyEachVector");
-			addVectorSecondHalfToFirstHalfKernel = program.CreateKernel("AddVectorSecondHalfToFirstHalf");
+			addSecondHalfToFirstHalfKernel = program.CreateKernel("AddVectorSecondHalfToFirstHalf");
 			multiplyMatrixVectorKernel = program.CreateKernel("MultiplyMatrixVector");
 			columnVectorToRowKernel = program.CreateKernel("ColumnVectorToRow");
 		}
@@ -133,7 +201,7 @@ namespace LWisteria.MgcgCL
 			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
 
 			// 未知数ベクトルを0で初期化
-			this.InitializeVector(bufferX, 0);
+			this.InitializeVector(bufferX);
 
 			// 初期値を設定
 			/*
@@ -141,7 +209,7 @@ namespace LWisteria.MgcgCL
 			 * r_0 = b - Ap
 			 * p_0 = (LDLr)_0
 			 */
-			this.InitializeVector(bufferAp, 0);
+			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
 			
@@ -203,17 +271,21 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 計算結果を読み込み
-			var result = new double[this.Count];
-			queue.ReadFromBuffer(bufferX, ref result, false, null);
+			queue.ReadFromBuffer(bufferX, ref this.x, false, null);
 
 			// ここまで待機
 			queue.Finish();
-
-			// 結果を複製
-			result.CopyTo(this.x, 0);
 		}
 
-		private void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<long> columnIndeces, ComputeBuffer<long> nonzeroCounts, ComputeBuffer<double> vector)
+		/// <summary>
+		/// 行列とベクトルの積を計算する
+		/// </summary>
+		/// <param name="answer">解の代入先</param>
+		/// <param name="matrix">行列</param>
+		/// <param name="columnIndeces">列番号</param>
+		/// <param name="nonzeroCounts">非ゼロ要素数</param>
+		/// <param name="vector">ベクトル</param>
+		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<long> columnIndeces, ComputeBuffer<long> nonzeroCounts, ComputeBuffer<double> vector)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
@@ -238,10 +310,10 @@ namespace LWisteria.MgcgCL
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 対象となる大きさ
 				//  # 操作対象のベクトル
-				addVectorSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
-				addVectorSecondHalfToFirstHalfKernel.SetValueArgument(1, this.A.MaxNonzeroCountPerRow);
-				addVectorSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForMatrix_x_Vector);
-				queue.Execute(addVectorSecondHalfToFirstHalfKernel, null, new long[] { this.Count, size }, null, null);
+				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
+				addSecondHalfToFirstHalfKernel.SetValueArgument(1, this.A.MaxNonzeroCountPerRow);
+				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForMatrix_x_Vector);
+				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { this.Count, size }, null, null);
 
 				// 今回の大きさを保存
 				oldSize = size;
@@ -257,7 +329,13 @@ namespace LWisteria.MgcgCL
 			queue.Execute(columnVectorToRowKernel, null, new long[] { this.Count }, null, null);
 		}
 
-		private double VectorDotVector(ComputeBuffer<double> left, ComputeBuffer<double> right)
+		/// <summary>
+		/// ベクトルの内積を計算する
+		/// </summary>
+		/// <param name="left">掛けられるベクトル</param>
+		/// <param name="right">掛けるベクトル</param>
+		/// <returns>内積（要素同士の積の和）</returns>
+		double VectorDotVector(ComputeBuffer<double> left, ComputeBuffer<double> right)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
@@ -280,10 +358,10 @@ namespace LWisteria.MgcgCL
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 対象となる大きさ
 				//  # 操作対象のベクトル
-				addVectorSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
-				addVectorSecondHalfToFirstHalfKernel.SetValueArgument(1, 1L);
-				addVectorSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForDot);
-				queue.Execute(addVectorSecondHalfToFirstHalfKernel, null, new long[] { 1, size }, null, null);
+				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
+				addSecondHalfToFirstHalfKernel.SetValueArgument(1, 1L);
+				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, bufferForDot);
+				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { 1, size }, null, null);
 
 				// 今回の大きさを保存
 				oldSize = size;
@@ -296,7 +374,14 @@ namespace LWisteria.MgcgCL
 			return answerForDot[0];
 		}
 
-		private void VectorPlusVector(ComputeBuffer<double> answer, ComputeBuffer<double> left, ComputeBuffer<double> right, double C)
+		/// <summary>
+		/// ベクトル同士の和を計算する
+		/// </summary>
+		/// <param name="answer">解の代入先</param>
+		/// <param name="left">足されるベクトル</param>
+		/// <param name="right">足すベクトル</param>
+		/// <param name="C">足すベクトルに掛ける係数</param>
+		void VectorPlusVector(ComputeBuffer<double> answer, ComputeBuffer<double> left, ComputeBuffer<double> right, double C = 1.0)
 		{
 			// 各要素同士の足し算を実行
 			//  # 解を格納するベクトル
@@ -310,7 +395,12 @@ namespace LWisteria.MgcgCL
 			queue.Execute(plusEachVectorKernel, null, new long[] { this.Count }, null, null);
 		}
 
-		private void InitializeVector(ComputeBuffer<double> vector, double value)
+		/// <summary>
+		/// ベクトルの値をすべて指定した値にして初期化する
+		/// </summary>
+		/// <param name="vector">初期化するベクトル</param>
+		/// <param name="value">代入値</param>
+		void InitializeVector(ComputeBuffer<double> vector, double value = 0)
 		{
 			// 各要素同士の足し算を実行
 			//  # 初期化先のベクトル

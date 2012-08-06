@@ -9,12 +9,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int count = 20000;
+		const int count = 10000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int maxNonzeroCount = 60*2;
+		const int maxNonzeroCount = 15*2;
 
 		/// <summary>
 		/// 最小繰り返し回数

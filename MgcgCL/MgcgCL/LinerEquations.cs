@@ -19,7 +19,7 @@
 		/// <summary>
 		/// 未知数ベクトル
 		/// </summary>
-		public readonly double[] x;
+		public double[] x;
 
 		/// <summary>
 		/// 生成項
