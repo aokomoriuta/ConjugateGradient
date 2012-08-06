@@ -1,4 +1,6 @@
-﻿#pragma OPENCL EXTENSION cl_khr_fp64: enable
+﻿#if __OPENCL__VERSION__ < __CL_VERSION_1_2
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+#endif
 
 //! set vector's value
 /*!
@@ -63,17 +65,21 @@ __kernel void MultiplyEachVector(
 */
 __kernel void AddVectorSecondHalfToFirstHalf(
 	const long count,
+	const long maxNonzeroCount,
 	__global double* values)
 {
 	// get number and index
-	long globalIndex = get_global_id(0);
-	long globalSize = get_global_size(0);
+	long globalIndexI = get_global_id(0);
+	long globalIndexJ = get_global_id(1);
+	long globalSizeJ = get_global_size(1);
+
+	long globalIndex = globalIndexI*maxNonzeroCount + globalIndexJ;
 
 	// calculate latter index
-	long nextIndex = globalIndex + globalSize;
+	long nextIndex = globalIndex + globalSizeJ;
 
 	// only in vector's size
-	if(nextIndex < count)
+	if(nextIndex < globalIndexI*maxNonzeroCount+count)
 	{
 		// add second half value to this
 		values[globalIndex] += values[nextIndex];
@@ -89,11 +95,11 @@ __kernel void AddVectorSecondHalfToFirstHalf(
 	\param vector right vector
 */
 __kernel void MultiplyMatrixVector(
-	__global double* answer/*,
+	__global double* answer,
 	__global const double* matrixElements,
 	__global const long* matrixColumnIndeces,
 	__global const long* matrixNonzeroCounts,
-	__global const double* vector*/)
+	__global const double* vector)
 {
 	// get maximum number of elements
 	long maxNonzeroCount = get_global_size(1);
@@ -101,20 +107,41 @@ __kernel void MultiplyMatrixVector(
 	// get element index
 	long i = get_global_id(0);
 	long k = get_global_id(1);
-
-	answer[i*maxNonzeroCount + k] = k;
 	
-	/*// if this is not zero value
+	// get global index in matrix
+	long matrixIndex = i*maxNonzeroCount + k;
+
+	// if this is not zero value
 	if(k < matrixNonzeroCounts[i])
 	{
-		// get global index in matrix
-		long matrixIndex = i*maxNonzeroCount + k;
-
 		// get columnIndex;
 		long j = matrixColumnIndeces[matrixIndex];
 
 		// multiply
 		answer[matrixIndex] = matrixElements[matrixIndex] * vector[j];
-	}*/
+	}
+	// otherwise
+	else
+	{
+		// zero
+		answer[matrixIndex] = 0;
+	}
 }
-	
+
+//! column vector to row vector
+/*!
+	\param rowVector transoised vector
+	\param columnVector transposing vector
+	\param rowCount size of row of columnVector
+*/
+__kernel void ColumnVectorToRow(
+	__global double* rowVector,
+	__global const double* columnVector,
+	const long rowCount)
+{
+	// get number and index
+	long i = get_global_id(0);
+
+	// store element
+	rowVector[i] = columnVector[i*rowCount];
+}

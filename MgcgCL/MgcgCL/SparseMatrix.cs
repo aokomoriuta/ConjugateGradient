@@ -20,6 +20,9 @@
 		/// </summary>
 		internal readonly long[] NonzeroCounts;
 
+		/// <summary>
+		/// 1行あたりの最大非ゼロ要素数
+		/// </summary>
 		public readonly long MaxNonzeroCountPerRow;
 
 		/// <summary>
@@ -35,7 +38,8 @@
 
 			// 非ゼロ要素数を初期化
 			this.NonzeroCounts = new long[rowCount];
-
+			this.Clear();
+			
 			// 1行あたりの最大非ゼロ要素数を設定
 			this.MaxNonzeroCountPerRow = maxNonzeroCountPerRow;
 		}
@@ -48,8 +52,25 @@
 			// すべての非ゼロ要素数を
 			for(long i = 0; i < NonzeroCounts.Length; i++)
 			{
-				// ゼロにする
-				this.NonzeroCounts[i] = 0;
+				// 1にする
+				this.NonzeroCounts[i] = 1;
+
+				// 対角成分を0にする
+				this[i] = 0;
+			}
+		}
+
+		public double this[long i]
+		{
+			get
+			{
+				return this.Elements[i * this.MaxNonzeroCountPerRow];
+			}
+			set
+			{
+				this.Elements[i * this.MaxNonzeroCountPerRow] = value;
+
+				this.ColumnIndeces[i * this.MaxNonzeroCountPerRow] = i;
 			}
 		}
 
@@ -64,6 +85,11 @@
 			// 取得
 			get
 			{
+				if(i == j)
+				{
+					return this[i];
+				}
+
 				// 要素番号を取得
 				long k = this.GetLocalIndex(i, j);
 
@@ -79,25 +105,31 @@
 			}
 			set
 			{
-				// 要素番号を取得
-				long k = this.GetLocalIndex(i, j);
-
-				// 新しい要素なら
-				if(k < 0)
+				if(i == j)
 				{
-					// 設定する要素番号は最後尾にする
-					k = this.NonzeroCounts[i];
-
-					// 列番号を設定
-					this.ColumnIndeces[this.GetGlobalIndex(i, k)] = j;
-
-					// 非ゼロ要素数を1つ増やす
-					this.NonzeroCounts[i]++;
+					this[i] = value;
 				}
+				else
+				{
+					// 要素番号を取得
+					long k = this.GetLocalIndex(i, j);
 
-				// その要素に値を設定
-				this.Elements[this.GetGlobalIndex(i, k)] = value;
+					// 新しい要素なら
+					if(k < 0)
+					{
+						// 設定する要素番号は最後尾にする
+						k = this.NonzeroCounts[i];
 
+						// 列番号を設定
+						this.ColumnIndeces[this.GetGlobalIndex(i, k)] = j;
+
+						// 非ゼロ要素数を1つ増やす
+						this.NonzeroCounts[i]++;
+					}
+
+					// その要素に値を設定
+					this.Elements[this.GetGlobalIndex(i, k)] = value;
+				}
 			}
 		}
 
@@ -113,7 +145,7 @@
 			long first = i * this.MaxNonzeroCountPerRow;
 
 			// その行のすべての非ゼロ要素に対して
-			for(long k = 0; k < this.NonzeroCounts[i]; k++)
+			for(long k = 1; k < this.NonzeroCounts[i]; k++)
 			{
 				// 列番号が一致すれば
 				if(this.ColumnIndeces[first + k] == j)
