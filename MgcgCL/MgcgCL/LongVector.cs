@@ -17,7 +17,7 @@
 			double answer = 0.0;
 
 			// 全要素について
-			for(int i = 0; i < left.Length; i++)
+			for(long i = 0; i < left.Length; i++)
 			{
 				// 各要素をかけたものを解に追加
 				answer += left[i] * right[i];
@@ -26,7 +26,6 @@
 			// 解を返す
 			return answer;
 		}
-
 
 
 		/// <summary>
@@ -39,7 +38,7 @@
 		public static void SetAdded(this double[] answer, double[] left, double[] right, double a)
 		{
 			// 全要素について
-			for(int i = 0; i < answer.Length; i++)
+			for(long i = 0; i < answer.Length; i++)
 			{
 				// 答えベクトルを計算
 				answer[i] = left[i] + a * right[i];

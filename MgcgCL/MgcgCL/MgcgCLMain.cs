@@ -9,12 +9,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int count = 40000;
+		const long count = 100000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int maxNonzeroCount = 30*2;
+		const int maxNonzeroCount = 15*2;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -24,7 +24,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		const int maxIteration = count;
+		const int maxIteration = (int)(count/100);
 
 		/// <summary>
 		/// 収束誤差
@@ -42,7 +42,7 @@ namespace LWisteria.MgcgCL
 			var cgCL = new ConjugateGradientCL(count, maxNonzeroCount, minIteration, maxIteration, allowableResidual);
 
 			// 係数行列の初期化
-			for(int i = 0; i < count; i++)
+			for(long i = 0; i < count; i++)
 			{
 				cgCpu.A[i, i] = 0;
 				cgCpu.isEnabled[i] = true;
@@ -52,12 +52,12 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			for(int i = 0; i < count-1; i++)
+			for(long i = 0; i < count-1; i++)
 			{
 				// 各列で
-				for(int j = i+1; j < count; j++)
+				for(long j = i + 1; j < Math.Min(count, i + maxNonzeroCount / 2); j++)
 				{
-					if ((i-j)*(i-j) < maxNonzeroCount*maxNonzeroCount/4)
+					if(j - i < maxNonzeroCount / 2)
 					{
 						// 要素を計算
 						var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
@@ -83,10 +83,10 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			for (int i = 0; i < count; i++)
+			for (long i = 0; i < count; i++)
 			{
 				// 各列で
-				for (int j = 0; j < count; j++)
+				for (long j = 0; j < count; j++)
 				{
 					// 行列の要素を表示
 					//Console.Write("{0,5:f2} ", cgCpu.A[i, j]);
@@ -115,7 +115,7 @@ namespace LWisteria.MgcgCL
 			var clTime = stopwatch.ElapsedMilliseconds;
 
 			// 解の全てを
-			for(int i = 0; i < count; i++)
+			for(long i = 0; i < count; i++)
 			{
 				// 精度以下切り捨て
 				cgCpu.x[i] = Math.Round(cgCpu.x[i] / allowableResidual) * allowableResidual;

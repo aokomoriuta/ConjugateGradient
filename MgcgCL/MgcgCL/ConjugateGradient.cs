@@ -47,7 +47,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradient(int count, long maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradient(long count, long maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
 			: base(count, maxNonZeroCount)
 		{
 			// 残差および探索方向と係数行列と探索方向の積を初期化
@@ -69,7 +69,7 @@ namespace LWisteria.MgcgCL
 		public void Solve()
 		{
 			// ベクトルをゼロに初期化
-			for(int i = 0; i < this.Count; i++)
+			for(long i = 0; i < this.Count; i++)
 			{
 				this.Ap[i] = 0;
 				this.r[i] = 0;
@@ -123,7 +123,7 @@ namespace LWisteria.MgcgCL
 				else
 				{
 					// 残差ベクトルの大きさが収束判定誤差より小さいかどうかを計算
-					converged = (rrNew < this.allowableResidual2);
+					converged = (rrNew/this.Count < this.allowableResidual2);
 				}
 
 				// 収束していたら

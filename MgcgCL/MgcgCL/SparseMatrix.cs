@@ -60,16 +60,26 @@
 			}
 		}
 
-		public double this[long i]
+		/// <summary>
+		/// 対角成分を取得または設定する
+		/// </summary>
+		/// <param name="i">行番号および列番号</param>
+		/// <returns>対角成分</returns>
+		double this[long i]
 		{
+			// 取得
 			get
 			{
+				// 先頭要素を返す
 				return this.Elements[i * this.MaxNonzeroCountPerRow];
 			}
+			// 設定
 			set
 			{
+				// 先頭要素に設定
 				this.Elements[i * this.MaxNonzeroCountPerRow] = value;
 
+				// 列番号を設定
 				this.ColumnIndeces[i * this.MaxNonzeroCountPerRow] = i;
 			}
 		}
@@ -85,8 +95,10 @@
 			// 取得
 			get
 			{
+				// 対角成分なら
 				if(i == j)
 				{
+					// 対角成分を返す
 					return this[i];
 				}
 
@@ -105,18 +117,26 @@
 			}
 			set
 			{
+				// 対角成分なら
 				if(i == j)
 				{
+					// 対角成分を設定
 					this[i] = value;
 				}
+				// 違う場合は
 				else
 				{
 					// 要素番号を取得
-					long k = this.GetLocalIndex(i, j);
+					long k = 0;// this.GetLocalIndex(i, j);
 
 					// 新しい要素なら
-					if(k < 0)
+					//if(k < 0)
 					{
+						if(this.NonzeroCounts[i] == this.MaxNonzeroCountPerRow - 1)
+						{
+							throw new System.IndexOutOfRangeException(string.Format("1行に格納できる最大列数を超えました＠{0}行目", i));
+						}
+
 						// 設定する要素番号は最後尾にする
 						k = this.NonzeroCounts[i];
 
@@ -141,6 +161,9 @@
 		/// <returns>要素配列にその要素の格納されている場所</returns>
 		long GetLocalIndex(long i, long j)
 		{
+
+			System.Console.WriteLine("{0}, {1}", i, j);
+
 			// 先頭を設定
 			long first = i * this.MaxNonzeroCountPerRow;
 
