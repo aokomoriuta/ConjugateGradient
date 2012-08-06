@@ -9,12 +9,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int count = 10000;
+		const int count = 40000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int maxNonzeroCount = 15*2;
+		const int maxNonzeroCount = 30*2;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -77,7 +77,7 @@ namespace LWisteria.MgcgCL
 				}
 				
 				// 生成項を設定
-				double b_i = Math.Cos(i * i * 0.1);
+				double b_i = i * 0.01;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
 			}

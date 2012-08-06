@@ -24,6 +24,7 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		double allowableResidual2;
 
+		const int LOCAL_SIZE = 64;
 
 		/// <summary>
 		/// コマンドキュー
@@ -102,6 +103,7 @@ namespace LWisteria.MgcgCL
 		/// 残差
 		/// </summary>
 		ComputeBuffer<double> bufferR;
+
 
 		/// <summary>
 		/// 内積計算に使うバッファー
@@ -212,7 +214,8 @@ namespace LWisteria.MgcgCL
 			 * r_0 = b - Ap
 			 * p_0 = (LDLr)_0
 			 */
-			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
+			//this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
+			this.InitializeVector(bufferAp);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
 			
@@ -231,6 +234,8 @@ namespace LWisteria.MgcgCL
 				 * r' -= αAp
 				 * r'r' = r'・r'
 				 */
+				var debug = new double[this.Count];
+				queue.ReadFromBuffer(bufferR, ref debug, true, null);
 				double rr = this.VectorDotVector(bufferR, bufferR);
 				this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
 				double alpha = rr / this.VectorDotVector(bufferP, bufferAp);
@@ -392,10 +397,10 @@ namespace LWisteria.MgcgCL
 			long oldSize = columnCount;
 
 			// リダクションの計算が終了するまで書く大きさで
-			for (long thisSize = oldSize / 2; thisSize > 0; thisSize /= 2)
+			for (long thisSize = oldSize; oldSize > 1; thisSize /= ConjugateGradientCL.LOCAL_SIZE)
 			{
 				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				thisSize += (oldSize % 2 == 1) ? 1 : 0;
+				thisSize = ConjugateGradientCL.LOCAL_SIZE*(long)Math.Ceiling((double)oldSize / ConjugateGradientCL.LOCAL_SIZE);
 
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 今回計算する要素数
@@ -404,10 +409,11 @@ namespace LWisteria.MgcgCL
 				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
 				addSecondHalfToFirstHalfKernel.SetValueArgument(1, columnCount);
 				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, target);
-				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { rowCount, thisSize }, null, null);
+				addSecondHalfToFirstHalfKernel.SetLocalArgument(3, sizeof(double) * ConjugateGradientCL.LOCAL_SIZE);
+				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { rowCount, thisSize }, new long[] { 1L, ConjugateGradientCL.LOCAL_SIZE }, null);
 
 				// 今回の大きさを保存
-				oldSize = thisSize;
+				oldSize = thisSize / ConjugateGradientCL.LOCAL_SIZE;
 			}
 		}
 	}

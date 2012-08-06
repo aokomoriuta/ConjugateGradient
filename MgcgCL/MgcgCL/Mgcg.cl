@@ -58,35 +58,6 @@ __kernel void MultiplyEachVector(
 
 }
 
-//! Add each values on second half of a row to its first half
-/*!
-	\param count size of column
-	\param maxCount maximum size of one column
-	\param target vector
-*/
-__kernel void AddVectorSecondHalfToFirstHalf(
-	const long count,
-	const long maxCount,
-	__global double* values)
-{
-	// get number and index
-	long globalIndexI = get_global_id(0);
-	long globalIndexJ = get_global_id(1);
-	long globalSizeJ = get_global_size(1);
-
-	long globalIndex = globalIndexI*maxCount + globalIndexJ;
-
-	// calculate latter index
-	long nextIndex = globalIndex + globalSizeJ;
-
-	// only in vector's size
-	if(nextIndex < globalIndexI*maxCount+count)
-	{
-		// add second half value to this
-		values[globalIndex] += values[nextIndex];
-	}
-}
-
 //! Multiply each matrix element by vector element
 /*!
 	\param answer which answer is stored to
@@ -145,4 +116,58 @@ __kernel void ColumnVectorToRow(
 
 	// store element
 	rowVector[i] = columnVector[i*rowCount];
+}
+
+//! Add each values on second half of a row to its first half
+/*!
+	\param count target size of column
+	\param maxCount maximum size of one column
+	\param target vector
+*/
+__kernel void AddVectorSecondHalfToFirstHalf(
+	const long count,
+	const long maxCount,
+	__global double* values,
+	__local double* localValues)
+{
+	// get number and index
+	const long globalIndexI = get_global_id(0);
+	const long localIndexJ = get_local_id(1);
+	const long localSizeJ = get_local_size(1);
+	const long groupIndexJ = get_group_id(1);
+	const long groupSizeJ = get_num_groups(1);
+	
+	// calculate offset by row number
+	const long rowOffset = globalIndexI*maxCount;
+
+	// calculate locala and global total index
+	const long localIndex = localIndexJ;
+	const long globalIndex = rowOffset + groupIndexJ + localIndex + ((localIndex == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ-2));
+
+	// copy values to local from grobal
+	localValues[localIndex] = (globalIndex - rowOffset < count) ? values[globalIndex] : 0;
+
+	// synchronize work items in a group
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	// while reduction
+	for(long thisSize = localSizeJ/2; thisSize >= 1; thisSize/=2)
+	{
+		// only in target region for reduction
+		if(localIndex < thisSize)
+		{
+			// add second half value to first half
+			localValues[localIndex] += localValues[localIndex + thisSize];
+		}
+		
+		// synchronize work items in a group
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+	
+	// if top in local
+	if(localIndex == 0)
+	{
+		// store result to global
+		values[rowOffset + groupIndexJ] = localValues[0];
+	}
 }
