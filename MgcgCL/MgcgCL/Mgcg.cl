@@ -1,4 +1,4 @@
-﻿#if __OPENCL__VERSION__ < __CL_VERSION_1_2
+﻿#if __OPENCL__VERSION__ <= __CL_VERSION_1_1
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
 #endif
 

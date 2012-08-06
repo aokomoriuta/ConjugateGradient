@@ -95,12 +95,6 @@ namespace LWisteria.MgcgCL
 			answerForDot = new double[1];
 			bufferForMatrix_x_Vector = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count * this.A.MaxNonzeroCountPerRow);
 
-			// データを転送
-			queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
-			queue.WriteToBuffer(this.b, bufferB, false, null);
-			queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
-			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
-
 			// プログラムを作成
 			var program = new ComputeProgram(context, Properties.Resources.Mgcg);
 
@@ -132,6 +126,12 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		public void Solve()
 		{
+			// データを転送
+			queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
+			queue.WriteToBuffer(this.b, bufferB, false, null);
+			queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
+			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
+
 			// 未知数ベクトルを0で初期化
 			this.InitializeVector(bufferX, 0);
 
@@ -144,8 +144,7 @@ namespace LWisteria.MgcgCL
 			this.InitializeVector(bufferAp, 0);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
-
-
+			
 			// 収束したかどうか
 			bool converged = false;
 

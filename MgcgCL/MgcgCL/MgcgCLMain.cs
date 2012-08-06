@@ -9,7 +9,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int count = 10000;
+		const int count = 20000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -83,17 +83,17 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			for(int i = 0; i < count; i++)
+			for (int i = 0; i < count; i++)
 			{
-			    // 各列で
-			    for(int j = 0; j < count; j++)
-			    {
-			        // 行列の要素を表示
-			       // Console.Write("{0,5:f2} ", cgCpu.A[i, j]);
-			    }
+				// 各列で
+				for (int j = 0; j < count; j++)
+				{
+					// 行列の要素を表示
+					//Console.Write("{0,5:f2} ", cgCpu.A[i, j]);
+				}
 
-			    // 生成項の要素を表示
-			    //Console.WriteLine("  {0,5:f2}", cgCpu.b[i]);
+				// 生成項の要素を表示
+				//Console.WriteLine("  {0,5:f2}", cgCpu.b[i]);
 			}
 
 			Console.WriteLine("start");
@@ -103,13 +103,13 @@ namespace LWisteria.MgcgCL
 
 
 			// CPUで方程式を解く
-			stopwatch.Start();
+			stopwatch.Restart();
 			cgCpu.Solve();
 			stopwatch.Stop();
 			var cpuTime = stopwatch.ElapsedMilliseconds;
 
 			// OpenCLで方程式を説く
-			stopwatch.Start();
+			stopwatch.Restart();
 			cgCL.Solve();
 			stopwatch.Stop();
 			var clTime = stopwatch.ElapsedMilliseconds;
