@@ -140,24 +140,29 @@ __kernel void AddVectorSecondHalfToFirstHalf(
 	// calculate offset by row number
 	const long rowOffset = globalIndexI*maxCount;
 
-	// calculate locala and global total index
-	const long localIndex = localIndexJ;
-	const long globalIndex = rowOffset + groupIndexJ + localIndex + ((localIndex == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ-2));
+	// calculate local and global total index
+	const long localIndex1 = 2*localIndexJ;
+	const long localIndex2 = localIndex1+1;
+	const long globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
+	const long globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
 
 	// copy values to local from grobal
-	localValues[localIndex] = (globalIndex - rowOffset < count) ? values[globalIndex] : 0;
+	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? values[globalIndex1] : 0;
+	localValues[localIndex2] = (globalIndex2 - rowOffset < count) ? values[globalIndex2] : 0;
 
 	// synchronize work items in a group
 	barrier(CLK_LOCAL_MEM_FENCE);
-
+	
 	// while reduction
-	for(long thisSize = localSizeJ/2; thisSize >= 1; thisSize/=2)
+	for(long thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
 	{
 		// only in target region for reduction
-		if(localIndex < thisSize)
+		if(localIndexJ < thisSize)
 		{
+			//printf("[%d] + [%d]\n", localIndex, localIndex + thisSize);
+
 			// add second half value to first half
-			localValues[localIndex] += localValues[localIndex + thisSize];
+			localValues[localIndexJ] += localValues[localIndexJ + thisSize];
 		}
 		
 		// synchronize work items in a group
@@ -165,7 +170,7 @@ __kernel void AddVectorSecondHalfToFirstHalf(
 	}
 	
 	// if top in local
-	if(localIndex == 0)
+	if(localIndexJ == 0)
 	{
 		// store result to global
 		values[rowOffset + groupIndexJ] = localValues[0];
