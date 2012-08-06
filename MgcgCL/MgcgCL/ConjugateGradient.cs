@@ -107,6 +107,8 @@ namespace LWisteria.MgcgCL
 				this.r.SetAdded(this.r, this.Ap, -alpha);
 				double rrNew = this.r.Dot(this.r);
 
+				Console.WriteLine("{0}: {1}", iteration, this.Ap.Dot(this.Ap));
+
 				// 最小繰り返し回数未満なら
 				if(iteration < this.minIteration)
 				{
@@ -123,7 +125,7 @@ namespace LWisteria.MgcgCL
 				else
 				{
 					// 残差ベクトルの大きさが収束判定誤差より小さいかどうかを計算
-					converged = (rrNew/this.Count < this.allowableResidual2);
+					converged = (rrNew < this.allowableResidual2);
 				}
 
 				// 収束していたら

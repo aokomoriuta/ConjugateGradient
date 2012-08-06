@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 namespace LWisteria.MgcgCL
 {
 	/// <summary>
@@ -9,7 +10,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long count = 100000;
+		const long count = 10000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -52,49 +53,34 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			for(long i = 0; i < count-1; i++)
+			Parallel.For(0, count - 1, (i) =>
+			//for(long i = 0; i < count - 1; i++)
 			{
 				// 各列で
 				for(long j = i + 1; j < Math.Min(count, i + maxNonzeroCount / 2); j++)
 				{
-					if(j - i < maxNonzeroCount / 2)
-					{
-						// 要素を計算
-						var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
+					// 要素を計算
+					var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
 
-						// 要素を設定
-						cgCpu.A[i, j] = a_ij;
-						cgCpu.A[j, i] = a_ij;
-						cgCL.A[i, j] = a_ij;
-						cgCL.A[j, i] = a_ij;
+					// 要素を設定
+					cgCpu.A[i, j] = a_ij;
+					cgCpu.A[j, i] = a_ij;
+					cgCL.A[i, j] = a_ij;
+					cgCL.A[j, i] = a_ij;
 
-						// 対角成分を追加
-						cgCpu.A[i, i] += a_ij;
-						cgCpu.A[j, j] += a_ij;
-						cgCL.A[i, i] += a_ij;
-						cgCL.A[j, j] += a_ij;
-					}
+					// 対角成分を追加
+					cgCpu.A[i, i] += a_ij;
+					cgCpu.A[j, j] += a_ij;
+					cgCL.A[i, i] += a_ij;
+					cgCL.A[j, j] += a_ij;
 				}
-				
+
 				// 生成項を設定
 				double b_i = i * 0.01;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
 			}
-
-			// 各行で
-			for (long i = 0; i < count; i++)
-			{
-				// 各列で
-				for (long j = 0; j < count; j++)
-				{
-					// 行列の要素を表示
-					//Console.Write("{0,5:f2} ", cgCpu.A[i, j]);
-				}
-
-				// 生成項の要素を表示
-				//Console.WriteLine("  {0,5:f2}", cgCpu.b[i]);
-			}
+			);
 
 			Console.WriteLine("start");
 
@@ -125,7 +111,7 @@ namespace LWisteria.MgcgCL
 				if(cgCpu.x[i] != cgCL.x[i])
 				{
 					// 出力
-					Console.WriteLine("{0}: {0} vs {1}", i, cgCpu.x[i], cgCL.x[i]);
+					//Console.WriteLine("{0}: {1} vs {2}", i, cgCpu.x[i], cgCL.x[i]);
 				}
 			}
 
