@@ -124,7 +124,7 @@ __kernel void ColumnVectorToRow(
 	\param maxCount maximum size of one column
 	\param target vector
 */
-__kernel void AddVectorSecondHalfToFirstHalf(
+__kernel void AddEachLocalValuesToTop(
 	const long count,
 	const long maxCount,
 	__global double* values,

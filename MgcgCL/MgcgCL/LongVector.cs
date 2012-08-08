@@ -1,4 +1,5 @@
-﻿namespace LWisteria.MgcgCL.LongVector
+﻿using System.Threading.Tasks;
+namespace LWisteria.MgcgCL.LongVector
 {
 	/// <summary>
 	/// 多次元ベクトルに対する拡張メソッド群
@@ -17,11 +18,13 @@
 			double answer = 0.0;
 
 			// 全要素について
+			//Parallel.For(0, left.LongLength, (i)=>
 			for(long i = 0; i < left.Length; i++)
 			{
 				// 各要素をかけたものを解に追加
 				answer += left[i] * right[i];
 			}
+			//);
 
 			// 解を返す
 			return answer;
@@ -38,11 +41,13 @@
 		public static void SetAdded(this double[] answer, double[] left, double[] right, double a)
 		{
 			// 全要素について
+			//Parallel.For(0, left.LongLength, (i) =>
 			for(long i = 0; i < answer.Length; i++)
 			{
 				// 答えベクトルを計算
 				answer[i] = left[i] + a * right[i];
 			}
+			//);
 		}
 	}
 }

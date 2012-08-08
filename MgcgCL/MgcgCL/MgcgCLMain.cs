@@ -10,7 +10,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long count = 10000;
+		const long count = 1000000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数

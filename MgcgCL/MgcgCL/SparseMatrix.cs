@@ -1,4 +1,5 @@
-﻿namespace LWisteria.MgcgCL
+﻿using System.Threading.Tasks;
+namespace LWisteria.MgcgCL
 {
 	/// <summary>
 	/// 疎行列
@@ -202,6 +203,7 @@
 		internal void Multiply(double[] answer, double[] vector, bool[] isEnabled)
 		{
 			// 各行について
+			//Parallel.For(0, answer.LongLength, (i) =>
 			for(long i = 0; i < answer.Length; i++)
 			{
 				// 解をゼロに設定
@@ -225,6 +227,7 @@
 					}
 				}
 			}
+			//);
 		}
 	}
 }

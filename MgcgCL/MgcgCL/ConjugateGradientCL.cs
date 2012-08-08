@@ -64,7 +64,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 前半部分を後半部分に足す
 		/// </summary>
-		ComputeKernel addSecondHalfToFirstHalfKernel;
+		ComputeKernel addEachLocalValuesToTopKernel;
 
 		/// <summary>
 		/// 縦ベクトルを横ベクトルにする
@@ -197,7 +197,7 @@ namespace LWisteria.MgcgCL
 			setAllVectorKernel = program.CreateKernel("SetAllVector");
 			plusEachVectorKernel = program.CreateKernel("PlusEachVector");
 			multiplyEachVectorKernel = program.CreateKernel("MultiplyEachVector");
-			addSecondHalfToFirstHalfKernel = program.CreateKernel("AddVectorSecondHalfToFirstHalf");
+			addEachLocalValuesToTopKernel = program.CreateKernel("AddEachLocalValuesToTop");
 			multiplyMatrixVectorKernel = program.CreateKernel("MultiplyMatrixVector");
 			columnVectorToRowKernel = program.CreateKernel("ColumnVectorToRow");
 			
@@ -258,7 +258,7 @@ namespace LWisteria.MgcgCL
 				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
 				double rrNew = this.VectorDotVector(bufferR, bufferR);
 
-				Console.WriteLine("{0}: {1}", iteration, this.VectorDotVector(bufferAp, bufferAp));
+				//Console.WriteLine("{0}: {1}", iteration, this.VectorDotVector(bufferAp, bufferAp));
 
 				// 最小繰り返し回数未満なら
 				if(iteration < this.minIteration)
@@ -424,11 +424,11 @@ namespace LWisteria.MgcgCL
 				//  # 今回計算する要素数
 				//  # 1行あたりの要素数
 				//  # 総和を実行する対象
-				addSecondHalfToFirstHalfKernel.SetValueArgument(0, oldSize);
-				addSecondHalfToFirstHalfKernel.SetValueArgument(1, columnCount);
-				addSecondHalfToFirstHalfKernel.SetMemoryArgument(2, target);
-				addSecondHalfToFirstHalfKernel.SetLocalArgument(3, sizeof(double) * localSize);
-				queue.Execute(addSecondHalfToFirstHalfKernel, null, new long[] { rowCount, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
+				addEachLocalValuesToTopKernel.SetValueArgument(0, oldSize);
+				addEachLocalValuesToTopKernel.SetValueArgument(1, columnCount);
+				addEachLocalValuesToTopKernel.SetMemoryArgument(2, target);
+				addEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(double) * localSize);
+				queue.Execute(addEachLocalValuesToTopKernel, null, new long[] { rowCount, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
 
 				// 今回の大きさを保存
 				oldSize = thisSize / localSize;

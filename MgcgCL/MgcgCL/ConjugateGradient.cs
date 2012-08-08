@@ -107,7 +107,7 @@ namespace LWisteria.MgcgCL
 				this.r.SetAdded(this.r, this.Ap, -alpha);
 				double rrNew = this.r.Dot(this.r);
 
-				Console.WriteLine("{0}: {1}", iteration, this.Ap.Dot(this.Ap));
+				//Console.WriteLine("{0}: {1}", iteration, this.Ap.Dot(this.Ap));
 
 				// 最小繰り返し回数未満なら
 				if(iteration < this.minIteration)
