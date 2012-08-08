@@ -12,12 +12,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long COUNT = 1500000;
+		const long COUNT = 10;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int MAX_NONZERO_COUNT = 15;
+		const int MAX_NONZERO_COUNT = 10;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -27,7 +27,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		const int MAX_ITERATION = (int)(COUNT/100);
+		const int MAX_ITERATION = 200;
 
 		/// <summary>
 		/// 収束誤差
@@ -40,6 +40,7 @@ namespace LWisteria.MgcgCL
 		/// <returns>終了コード</returns>
 		static int Main()
 		{
+			// 要素数表示
 			Console.WriteLine("N={0}", COUNT);
 
 			// CG法を作成
@@ -83,9 +84,26 @@ namespace LWisteria.MgcgCL
 				double b_i = i * 0.01;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
+
+				// 未知数を初期化
+				double x_i = 0;
+				cgCpu.x[i] = x_i;
+				cgCL.x[i] = x_i;
 			}
 			);
 
+			//// 固有値を計算
+			//var eigenValues = new System.Collections.Generic.List<double>(cgCpu.A.GetEigenValues(MAX_ITERATION, ALLOWABLE_RESIDUAL));
+
+			//eigenValues.Sort((Comparison<double>)((x,y)=>(x == y) ? 0 : (x < y)? 1 : -1));
+
+			//// 固有値を表示
+			//foreach(var eigenValue in eigenValues)
+			//{
+			//    Console.WriteLine(eigenValue);
+			//}
+
+			// 開始を通知
 			Console.WriteLine("start");
 
 			// ストップウォッチを作成
@@ -98,15 +116,25 @@ namespace LWisteria.MgcgCL
 			stopwatch.Stop();
 			var cpuTime = stopwatch.ElapsedMilliseconds;
 
-			// OpenCLで方程式を説く
+			// OpenCLで方程式を解く
 			stopwatch.Restart();
 			cgCL.Solve();
 			stopwatch.Stop();
 			var clTime = stopwatch.ElapsedMilliseconds;
 
+			for(long i = 0; i < COUNT; i++)
+			{
+				double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
+
+				if(residual > ALLOWABLE_RESIDUAL)
+				{
+					Console.WriteLine("{0,4}: {1:e}", i, residual);
+				}
+			}
+
 			// かかった時間を表示
-			Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime/cgCpu.Iteration);
-			Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime/cgCL.Iteration);
+			//Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime/cgCpu.Iteration);
+			//Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime/cgCL.Iteration);
 
 			// 終了
             Console.WriteLine("終了します");

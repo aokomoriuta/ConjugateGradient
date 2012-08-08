@@ -208,56 +208,65 @@ namespace LWisteria.MgcgCL
 			// データを転送
 			queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
 			queue.WriteToBuffer(this.b, bufferB, false, null);
+			queue.WriteToBuffer(this.x, bufferX, false, null);
 			queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
 			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
 
-			// 初期値を設定
-			/*
-			 * (Ap)_0 = A * x
-			 * r_0 = b - Ap
-			 * p_0 = (LDLr)_0
-			 */
-			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
-			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
-			queue.CopyBuffer(bufferR, bufferP, null);
+			this.Matrix_x_Vector(bufferX, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferB);
+
+			//// 初期値を設定
+			///*
+			// * (Ap)_0 = A * x
+			// * r_0 = b - Ap
+			// * p_0 = (LDLr)_0
+			// */
+			//this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
+			//this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
+			//queue.CopyBuffer(bufferR, bufferP, null);
 			
-			// 収束したかどうか
-			bool converged = false;
+			//// 収束したかどうか
+			//bool converged = false;
 
-			// 収束しない間繰り返す
-			for(this.Iteration = 0; !converged; this.Iteration++)
-			{
-				// 計算を実行
-				/*
-				 * rr = r・r
-				 * Ap = A * p
-				 * α = rr/(p・Ap)
-				 * x' += αp
-				 * r' -= αAp
-				 */
-				double rr = this.VectorDotVector(bufferR, bufferR);
-				this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
-				double alpha = rr / this.VectorDotVector(bufferP, bufferAp);
-				this.VectorPlusVector(bufferX, bufferX, bufferP, alpha);
-				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
+			//// 収束しない間繰り返す
+			//for(this.Iteration = 0; !converged; this.Iteration++)
+			//{
+			//    // 計算を実行
+			//    /*
+			//     * rr = r・r
+			//     * Ap = A * p
+			//     * α = rr/(p・Ap)
+			//     * x' += αp
+			//     * r' -= αAp
+			//     */
+			//    double rr = this.VectorDotVector(bufferR, bufferR);
+			//    this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
 
-				// 収束したかどうかを取得
-				converged = this.IsConverged(this.Max(bufferR));
+			//    var debug = new double[Count];
+			//    queue.ReadFromBuffer(bufferAp, ref debug, true, null);
 
-				// 収束していなかったら
-				if(!converged)
-				{
-					// 残りの計算を実行
-					/*
-					 * β= r'r'/rLDLr
-					 * p = r' + βp
-					　* r'r' = r'・r'
-					 */
-					double rrNew = this.VectorDotVector(bufferR, bufferR);
-					double beta = rrNew / rr;
-					this.VectorPlusVector(bufferP, bufferR, bufferP, beta);
-				}
-			}
+			//    Console.WriteLine("{0}: {1}, {2}", this.Iteration, rr, debug.Dot(debug));
+
+			//    double alpha = rr / this.VectorDotVector(bufferP, bufferAp);
+			//    this.VectorPlusVector(bufferX, bufferX, bufferP, alpha);
+			//    this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
+
+			//    // 収束したかどうかを取得
+			//    converged = this.IsConverged(this.Max(bufferR));
+
+			//    // 収束していなかったら
+			//    if(!converged)
+			//    {
+			//        // 残りの計算を実行
+			//        /*
+			//         * β= r'r'/rLDLr
+			//         * p = r' + βp
+			//         * r'r' = r'・r'
+			//         */
+			//        double rrNew = this.VectorDotVector(bufferR, bufferR);
+			//        double beta = rrNew / rr;
+			//        this.VectorPlusVector(bufferP, bufferR, bufferP, beta);
+			//    }
+			//}
 
 			// 計算結果を読み込み
 			queue.ReadFromBuffer(bufferX, ref this.x, false, null);
@@ -321,6 +330,9 @@ namespace LWisteria.MgcgCL
 			multiplyEachVectorKernel.SetMemoryArgument(1, left);
 			multiplyEachVectorKernel.SetMemoryArgument(2, right);
 			queue.Execute(multiplyEachVectorKernel, null, new long[] { this.Count }, null, null);
+
+			var debug = new double[this.Count];
+			queue.ReadFromBuffer(bufferForDot, ref debug, true, null);
 
 			// リダクションで和をとる
 			SumEachRow(1, this.Count, bufferForDot, this.localSizeForDot);
@@ -431,7 +443,12 @@ namespace LWisteria.MgcgCL
 				// 今回の大きさを保存
 				oldSize = thisSize / localSize;
 			}
-			
+
+			var debug = new double[this.Count];
+			queue.ReadFromBuffer(target, ref debug, true, null);
+
+			answerForDot[0] = 0;
+
 			// 結果を取得
 			queue.ReadFromBuffer(bufferForMax, ref answerForDot, true, 0, 0, 1, null);
 
