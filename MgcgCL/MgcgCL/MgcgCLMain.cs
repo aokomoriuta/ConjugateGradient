@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
+using LWisteria.MgcgCL.LongVector;
+
 namespace LWisteria.MgcgCL
 {
 	/// <summary>
@@ -10,27 +12,27 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long count = 1000000;
+		const long COUNT = 1500000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int maxNonzeroCount = 15*2;
+		const int MAX_NONZERO_COUNT = 15;
 
 		/// <summary>
 		/// 最小繰り返し回数
 		/// </summary>
-		const int minIteration = 0;
+		const int MIN_ITERATION = 0;
 
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		const int maxIteration = (int)(count/100);
+		const int MAX_ITERATION = (int)(COUNT/100);
 
 		/// <summary>
 		/// 収束誤差
 		/// </summary>
-		const double allowableResidual = 1e-8;
+		const double ALLOWABLE_RESIDUAL = 1e-8;
 
 		/// <summary>
 		/// エントリポイント
@@ -38,12 +40,14 @@ namespace LWisteria.MgcgCL
 		/// <returns>終了コード</returns>
 		static int Main()
 		{
+			Console.WriteLine("N={0}", COUNT);
+
 			// CG法を作成
-			var cgCpu = new ConjugateGradient(count, maxNonzeroCount, minIteration, maxIteration, allowableResidual);
-			var cgCL = new ConjugateGradientCL(count, maxNonzeroCount, minIteration, maxIteration, allowableResidual);
+			var cgCpu = new ConjugateGradientCpu(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
+			var cgCL = new ConjugateGradientCL(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
 
 			// 係数行列の初期化
-			for(long i = 0; i < count; i++)
+			for(long i = 0; i < COUNT; i++)
 			{
 				cgCpu.A[i, i] = 0;
 				cgCpu.isEnabled[i] = true;
@@ -53,11 +57,11 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			Parallel.For(0, count - 1, (i) =>
+			Parallel.For(0, COUNT - 1, (i) =>
 			//for(long i = 0; i < count - 1; i++)
 			{
 				// 各列で
-				for(long j = i + 1; j < Math.Min(count, i + maxNonzeroCount / 2); j++)
+				for(long j = i + 1; j < Math.Min(COUNT, i + MAX_NONZERO_COUNT / 2); j++)
 				{
 					// 要素を計算
 					var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
@@ -100,24 +104,9 @@ namespace LWisteria.MgcgCL
 			stopwatch.Stop();
 			var clTime = stopwatch.ElapsedMilliseconds;
 
-			// 解の全てを
-			for(long i = 0; i < count; i++)
-			{
-				// 精度以下切り捨て
-				cgCpu.x[i] = Math.Round(cgCpu.x[i] / allowableResidual) * allowableResidual;
-				cgCL.x[i] = Math.Round(cgCL.x[i] / allowableResidual) * allowableResidual;
-
-				// 答えが違ったら
-				if(cgCpu.x[i] != cgCL.x[i])
-				{
-					// 出力
-					//Console.WriteLine("{0}: {1} vs {2}", i, cgCpu.x[i], cgCL.x[i]);
-				}
-			}
-
 			// かかった時間を表示
-			Console.WriteLine("CPU: {0}", cpuTime);
-			Console.WriteLine(" CL: {0}", clTime);
+			Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime/cgCpu.Iteration);
+			Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime/cgCL.Iteration);
 
 			// 終了
             Console.WriteLine("終了します");

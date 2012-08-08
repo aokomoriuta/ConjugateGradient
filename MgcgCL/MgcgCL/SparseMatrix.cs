@@ -128,10 +128,10 @@ namespace LWisteria.MgcgCL
 				else
 				{
 					// 要素番号を取得
-					long k = 0;// this.GetLocalIndex(i, j);
+					long k = this.GetLocalIndex(i, j);
 
 					// 新しい要素なら
-					//if(k < 0)
+					if(k < 0)
 					{
 						if(this.NonzeroCounts[i] == this.MaxNonzeroCountPerRow - 1)
 						{
@@ -162,9 +162,6 @@ namespace LWisteria.MgcgCL
 		/// <returns>要素配列にその要素の格納されている場所</returns>
 		long GetLocalIndex(long i, long j)
 		{
-
-			System.Console.WriteLine("{0}, {1}", i, j);
-
 			// 先頭を設定
 			long first = i * this.MaxNonzeroCountPerRow;
 

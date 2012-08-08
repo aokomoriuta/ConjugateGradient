@@ -49,5 +49,26 @@ namespace LWisteria.MgcgCL.LongVector
 			}
 			//);
 		}
+
+		/// <summary>
+		/// 要素の中で最大値を探す
+		/// </summary>
+		/// <param name="vector">探索するベクトル</param>
+		/// <returns>最大値</returns>
+		public static double Max(this double[] vector)
+		{
+			// 最初の要素で最大値を初期化
+			double max = vector[0];
+
+			// 残りの要素のうち
+			for(long i = 1; i < vector.Length; i++)
+			{
+				// 最大のものを探す
+				max = System.Math.Max(vector[i], max);
+			}
+
+			// 最大値を返す
+			return max;
+		}
 	}
 }

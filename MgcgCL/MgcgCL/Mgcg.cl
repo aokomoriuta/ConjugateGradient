@@ -176,3 +176,64 @@ __kernel void AddEachLocalValuesToTop(
 		values[rowOffset + groupIndexJ] = localValues[0];
 	}
 }
+
+
+
+//! Add each values on second half of a row to its first half
+/*!
+	\param count target size of column
+	\param maxCount maximum size of one column
+	\param target vector
+*/
+__kernel void StoreMaxEachLocalValuesToTop(
+	const long count,
+	const long maxCount,
+	__global double* values,
+	__local double* localValues)
+{
+	// get number and index
+	const long globalIndexI = get_global_id(0);
+	const long localIndexJ = get_local_id(1);
+	const long localSizeJ = get_local_size(1);
+	const long groupIndexJ = get_group_id(1);
+	const long groupSizeJ = get_num_groups(1);
+	
+	// calculate offset by row number
+	const long rowOffset = globalIndexI*maxCount;
+
+	// calculate local and global total index
+	const long localIndex1 = 2*localIndexJ;
+	const long localIndex2 = localIndex1+1;
+	const long globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
+	const long globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
+
+	// copy values to local from grobal
+	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? values[globalIndex1] : 0;
+	localValues[localIndex2] = (globalIndex2 - rowOffset < count) ? values[globalIndex2] : 0;
+
+	// synchronize work items in a group
+	barrier(CLK_LOCAL_MEM_FENCE);
+	
+	// while reduction
+	for(long thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
+	{
+		// only in target region for reduction
+		if(localIndexJ < thisSize)
+		{
+			//printf("[%d] + [%d]\n", localIndex, localIndex + thisSize);
+
+			// add second half value to first half
+			localValues[localIndexJ] = max(localValues[localIndexJ], localValues[localIndexJ + thisSize]);
+		}
+		
+		// synchronize work items in a group
+		barrier(CLK_LOCAL_MEM_FENCE);
+	}
+	
+	// if top in local
+	if(localIndexJ == 0)
+	{
+		// store result to global
+		values[rowOffset + groupIndexJ] = localValues[0];
+	}
+}

@@ -7,28 +7,12 @@ namespace LWisteria.MgcgCL
 	/// <summary>
 	/// 共役勾配法
 	/// </summary>
-	public class ConjugateGradientCL : LinerEquations
+	public class ConjugateGradientCL : ConjugateGradient
 	{
-		/// <summary>
-		/// 最小繰り返し回数
-		/// </summary>
-		int minIteration;
-
-		/// <summary>
-		/// 最大繰り返し回数
-		/// </summary>
-		int maxIteration;
-
-		/// <summary>
-		/// 収束判定誤差の2乗
-		/// </summary>
-		double allowableResidual2;
-
 		/// <summary>
 		/// 内積で使うワークグループ内ワークアイテム数
 		/// </summary>
 		readonly long localSizeForDot;
-
 
 		/// <summary>
 		/// 行列とベクトルの積で使うワークグループ内ワークアイテム数
@@ -62,14 +46,19 @@ namespace LWisteria.MgcgCL
 		ComputeKernel multiplyMatrixVectorKernel;
 
 		/// <summary>
-		/// 前半部分を後半部分に足す
+		/// 縦ベクトルを横ベクトルにする
+		/// </summary>
+		ComputeKernel columnVectorToRowKernel;
+
+		/// <summary>
+		/// ローカルメモリ内の総和を先頭に格納する
 		/// </summary>
 		ComputeKernel addEachLocalValuesToTopKernel;
 
 		/// <summary>
-		/// 縦ベクトルを横ベクトルにする
+		/// ローカルメモリ内の最大値を先頭に格納する
 		/// </summary>
-		ComputeKernel columnVectorToRowKernel;
+		ComputeKernel storeMaxEachLocalValuesToTopKernel;
 		#endregion
 
 		#region バッファー
@@ -128,6 +117,12 @@ namespace LWisteria.MgcgCL
 		/// 行列とベクトルの積の計算に使うバッファー
 		/// </summary>
 		ComputeBuffer<double> bufferForMatrix_x_Vector;
+
+
+		/// <summary>
+		/// 最大値の算出に使うバッファー
+		/// </summary>
+		ComputeBuffer<double> bufferForMax;
 		#endregion
 
 
@@ -140,16 +135,8 @@ namespace LWisteria.MgcgCL
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
 		public ConjugateGradientCL(long count, long maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
-			: base(count, maxNonZeroCount)
+			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
-			// 最小・最大繰り返し回数を設定
-			this.minIteration = _minIteration;
-			this.maxIteration = _maxIteration;
-
-			// 収束判定誤差を設定
-			this.allowableResidual2 = allowableResidual * allowableResidual;
-
-
 			// プラットフォームとデバイス群を取得
 			var platform = ComputePlatform.Platforms[0];
 			var devices = platform.Devices;
@@ -175,6 +162,7 @@ namespace LWisteria.MgcgCL
 			bufferForDot = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 			answerForDot = new double[1];
 			bufferForMatrix_x_Vector = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count * this.A.MaxNonzeroCountPerRow);
+			bufferForMax = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 
 			// プログラムを作成
 			var program = new ComputeProgram(context, Properties.Resources.Mgcg);
@@ -197,9 +185,10 @@ namespace LWisteria.MgcgCL
 			setAllVectorKernel = program.CreateKernel("SetAllVector");
 			plusEachVectorKernel = program.CreateKernel("PlusEachVector");
 			multiplyEachVectorKernel = program.CreateKernel("MultiplyEachVector");
-			addEachLocalValuesToTopKernel = program.CreateKernel("AddEachLocalValuesToTop");
 			multiplyMatrixVectorKernel = program.CreateKernel("MultiplyMatrixVector");
 			columnVectorToRowKernel = program.CreateKernel("ColumnVectorToRow");
+			addEachLocalValuesToTopKernel = program.CreateKernel("AddEachLocalValuesToTop");
+			storeMaxEachLocalValuesToTopKernel = program.CreateKernel("StoreMaxEachLocalValuesToTop");
 			
 			// 行列とベクトルの積の場合は、1行あたりの最大列数に近い2^nで1グループを回す
 			this.localSizeForMatrix_x_Vector = Math.Min(
@@ -214,16 +203,13 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// OpenCLを使って方程式を解く
 		/// </summary>
-		public void Solve()
+		override public void Solve()
 		{
 			// データを転送
 			queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
 			queue.WriteToBuffer(this.b, bufferB, false, null);
 			queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
 			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
-
-			// 未知数ベクトルを0で初期化
-			this.InitializeVector(bufferX);
 
 			// 初期値を設定
 			/*
@@ -232,7 +218,6 @@ namespace LWisteria.MgcgCL
 			 * p_0 = (LDLr)_0
 			 */
 			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
-			//this.InitializeVector(bufferAp);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
 			
@@ -240,7 +225,7 @@ namespace LWisteria.MgcgCL
 			bool converged = false;
 
 			// 収束しない間繰り返す
-			for(int iteration = 0; !converged; iteration++)
+			for(this.Iteration = 0; !converged; this.Iteration++)
 			{
 				// 計算を実行
 				/*
@@ -249,50 +234,29 @@ namespace LWisteria.MgcgCL
 				 * α = rr/(p・Ap)
 				 * x' += αp
 				 * r' -= αAp
-				 * r'r' = r'・r'
 				 */
 				double rr = this.VectorDotVector(bufferR, bufferR);
 				this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
 				double alpha = rr / this.VectorDotVector(bufferP, bufferAp);
 				this.VectorPlusVector(bufferX, bufferX, bufferP, alpha);
 				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
-				double rrNew = this.VectorDotVector(bufferR, bufferR);
 
-				//Console.WriteLine("{0}: {1}", iteration, this.VectorDotVector(bufferAp, bufferAp));
+				// 収束したかどうかを取得
+				converged = this.IsConverged(this.Max(bufferR));
 
-				// 最小繰り返し回数未満なら
-				if(iteration < this.minIteration)
+				// 収束していなかったら
+				if(!converged)
 				{
-					// 収束していない
-					converged = false;
+					// 残りの計算を実行
+					/*
+					 * β= r'r'/rLDLr
+					 * p = r' + βp
+					　* r'r' = r'・r'
+					 */
+					double rrNew = this.VectorDotVector(bufferR, bufferR);
+					double beta = rrNew / rr;
+					this.VectorPlusVector(bufferP, bufferR, bufferP, beta);
 				}
-				// 最大繰り返し回数を超えていたら
-				else if(iteration > this.maxIteration)
-				{
-					// 例外
-					throw new System.ApplicationException("圧力方程式が収束しませんでした。");
-				}
-				// それ以外の時
-				else
-				{
-					// 残差ベクトルの大きさが収束判定誤差より小さいかどうかを計算
-					converged = (rrNew < this.allowableResidual2);
-				}
-
-				// 収束していたら
-				if(converged)
-				{
-					// 計算終了
-					break;
-				}
-
-				// 残りの計算を実行
-				/*
-				 * β= r'r'/rLDLr
-				 * p = r' + βp
-				 */
-				double beta = rrNew / rr;
-				this.VectorPlusVector(bufferP, bufferR, bufferP, beta);
 			}
 
 			// 計算結果を読み込み
@@ -433,6 +397,46 @@ namespace LWisteria.MgcgCL
 				// 今回の大きさを保存
 				oldSize = thisSize / localSize;
 			}
+		}
+
+		/// <summary>
+		/// 行列の各行で総和を計算する
+		/// </summary>
+		/// <param name="target">総和をとる対象の行列</param>
+		double Max(ComputeBuffer<double> target)
+		{
+			queue.CopyBuffer(target, bufferForMax, null);
+
+			// 以前の大きさを設定
+			long oldSize = this.Count;
+
+			long localSize = this.localSizeForDot;
+
+			// リダクションの計算が終了するまで書く大きさで
+			for(long thisSize = oldSize; oldSize > 1; thisSize /= localSize)
+			{
+				// 前の大きさが奇数だった場合は1つ上の偶数にする
+				thisSize = localSize * (long)Math.Ceiling((double)oldSize / localSize);
+
+				// 後半の値を前半の値に加える（リダクション）
+				//  # 今回計算する要素数
+				//  # 1行あたりの要素数
+				//  # 総和を実行する対象
+				storeMaxEachLocalValuesToTopKernel.SetValueArgument(0, oldSize);
+				storeMaxEachLocalValuesToTopKernel.SetValueArgument(1, this.Count);
+				storeMaxEachLocalValuesToTopKernel.SetMemoryArgument(2, bufferForMax);
+				storeMaxEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(double) * localSize);
+				queue.Execute(storeMaxEachLocalValuesToTopKernel, null, new long[] { 1L, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
+
+				// 今回の大きさを保存
+				oldSize = thisSize / localSize;
+			}
+			
+			// 結果を取得
+			queue.ReadFromBuffer(bufferForMax, ref answerForDot, true, 0, 0, 1, null);
+
+			// 結果を返す
+			return answerForDot[0];
 		}
 	}
 }
