@@ -208,8 +208,8 @@ __kernel void StoreMaxEachLocalValuesToTop(
 	const long globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
 
 	// copy values to local from grobal
-	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? values[globalIndex1] : values[0];
-	localValues[localIndex2] = (globalIndex2 - rowOffset < count) ? values[globalIndex2] : values[0];
+	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? fabs(values[globalIndex1]) : 0;
+	localValues[localIndex2] = (globalIndex2 - rowOffset < count) ? fabs(values[globalIndex2]) : 0;
 
 	// synchronize work items in a group
 	barrier(CLK_LOCAL_MEM_FENCE);

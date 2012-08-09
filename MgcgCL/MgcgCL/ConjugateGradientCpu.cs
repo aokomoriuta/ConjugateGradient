@@ -46,58 +46,53 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		override public void Solve()
 		{
-			this.A.Multiply(this.x, this.b, this.isEnabled);
+			// 初期値を設定
+			/*
+			 * (Ap)_0 = A * x
+			 * r_0 = b - Ap
+			 * p_0 = (LDLr)_0
+			 */
+			this.A.Multiply(this.Ap, this.x, this.isEnabled);
+			this.r.SetAdded(this.b, this.Ap, -1.0);
+			this.r.CopyTo(this.p, 0);
 
-			//// 初期値を設定
-			///*
-			// * (Ap)_0 = A * x
-			// * r_0 = b - Ap
-			// * p_0 = (LDLr)_0
-			// */
-			//this.A.Multiply(this.Ap, this.x, this.isEnabled);
-			//this.r.SetAdded(this.b, this.Ap, -1.0);
-			//this.r.CopyTo(this.p, 0);
+			// 収束したかどうか
+			bool converged = false;
 
-			//// 収束したかどうか
-			//bool converged = false;
+			// 収束しない間繰り返す
+			for(this.Iteration = 0; !converged; this.Iteration++)
+			{
+				// 計算を実行
+				/*
+				 * rr = r・r
+				 * Ap = A * p
+				 * α = rr/(p・Ap)
+				 * x' += αp
+				 * r' -= αAp
+				 */
+				double rr = this.r.Dot(this.r);
+				this.A.Multiply(this.Ap, this.p, this.isEnabled);
+				double alpha = rr / this.p.Dot(this.Ap);
+				this.x.SetAdded(this.x, this.p, alpha);
+				this.r.SetAdded(this.r, this.Ap, -alpha);
 
-			//// 収束しない間繰り返す
-			//for(this.Iteration = 0; !converged; this.Iteration++)
-			//{
-			//    // 計算を実行
-			//    /*
-			//     * rr = r・r
-			//     * Ap = A * p
-			//     * α = rr/(p・Ap)
-			//     * x' += αp
-			//     * r' -= αAp
-			//     */
-			//    double rr = this.r.Dot(this.r);
-			//    this.A.Multiply(this.Ap, this.p, this.isEnabled);
+				// 収束したかどうかを取得
+				converged = this.IsConverged(r.Max());
 
-			//    Console.WriteLine("{0}: {1}, {2}", this.Iteration, rr, this.Ap.Dot(this.Ap));
-
-			//    double alpha = rr / this.p.Dot(this.Ap);
-			//    this.x.SetAdded(this.x, this.p, alpha);
-			//    this.r.SetAdded(this.r, this.Ap, -alpha);
-
-			//    // 収束したかどうかを取得
-			//    converged = this.IsConverged(r.Max());
-
-			//    // 収束していなかったら
-			//    if(!converged)
-			//    {
-			//        // 残りの計算を実行
-			//        /*
-			//         * r'r' = r'・r'
-			//         * β= r'r'/rLDLr
-			//         * p = r' + βp
-			//         */
-			//        double rrNew = this.r.Dot(this.r);
-			//        double beta = rrNew / rr;
-			//        this.p.SetAdded(this.r, this.p, beta);
-			//    }
-			//}
+				// 収束していなかったら
+				if(!converged)
+				{
+					// 残りの計算を実行
+					/*
+					 * r'r' = r'・r'
+					 * β= r'r'/rLDLr
+					 * p = r' + βp
+					 */
+					double rrNew = this.r.Dot(this.r);
+					double beta = rrNew / rr;
+					this.p.SetAdded(this.r, this.p, beta);
+				}
+			}
 		}
 	}
 }

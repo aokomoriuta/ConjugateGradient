@@ -12,12 +12,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long COUNT = 10;
+		const long COUNT = 100000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int MAX_NONZERO_COUNT = 10;
+		const int MAX_NONZERO_COUNT = 6;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -58,26 +58,25 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 各行で
-			Parallel.For(0, COUNT - 1, (i) =>
-			//for(long i = 0; i < count - 1; i++)
+			Parallel.For(0, COUNT, (i) =>
+			//for(long i = 0; i < COUNT - 1; i++)
 			{
 				// 各列で
-				for(long j = i + 1; j < Math.Min(COUNT, i + MAX_NONZERO_COUNT / 2); j++)
+				for(long j = Math.Max(0, i - MAX_NONZERO_COUNT / 2 + 1); j < Math.Min(COUNT, i + MAX_NONZERO_COUNT / 2); j++)
 				{
-					// 要素を計算
-					var a_ij = Math.Abs(Math.Sin(i * i + 2 * j));
+					if(i != j)
+					{
+						// 要素を計算
+						var a_ij = Math.Abs(Math.Sin(i + j));
 
-					// 要素を設定
-					cgCpu.A[i, j] = a_ij;
-					cgCpu.A[j, i] = a_ij;
-					cgCL.A[i, j] = a_ij;
-					cgCL.A[j, i] = a_ij;
+						// 要素を設定
+						cgCpu.A[i, j] = a_ij;
+						cgCL.A[i, j] = a_ij;
 
-					// 対角成分を追加
-					cgCpu.A[i, i] += a_ij;
-					cgCpu.A[j, j] += a_ij;
-					cgCL.A[i, i] += a_ij;
-					cgCL.A[j, j] += a_ij;
+						// 対角成分に追加
+						cgCpu.A[i, i] += a_ij;
+						cgCL.A[i, i] += a_ij;
+					}
 				}
 
 				// 生成項を設定
@@ -91,6 +90,18 @@ namespace LWisteria.MgcgCL
 				cgCL.x[i] = x_i;
 			}
 			);
+
+			//for(long i = 0; i < COUNT; i++)
+			//{
+			//    for(long j = 0; j < COUNT; j++)
+			//    {
+			//        Console.Write("{0,5:f} ", cgCpu.A[i, j]);
+			//    }
+
+
+			//    Console.WriteLine("");
+			//}
+
 
 			//// 固有値を計算
 			//var eigenValues = new System.Collections.Generic.List<double>(cgCpu.A.GetEigenValues(MAX_ITERATION, ALLOWABLE_RESIDUAL));
@@ -133,11 +144,11 @@ namespace LWisteria.MgcgCL
 			}
 
 			// かかった時間を表示
-			//Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime/cgCpu.Iteration);
-			//Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime/cgCL.Iteration);
+			Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
+			Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime / cgCL.Iteration);
 
 			// 終了
-            Console.WriteLine("終了します");
+			Console.WriteLine("終了します");
 			Console.ReadKey();
 			return System.Environment.ExitCode;
 		}
