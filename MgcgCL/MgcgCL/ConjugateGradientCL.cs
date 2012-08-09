@@ -12,12 +12,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 内積で使うワークグループ内ワークアイテム数
 		/// </summary>
-		readonly long localSizeForDot;
+		readonly int localSizeForDot;
 
 		/// <summary>
 		/// 行列とベクトルの積で使うワークグループ内ワークアイテム数
 		/// </summary>
-		readonly long localSizeForMatrix_x_Vector;
+		readonly int localSizeForMatrix_x_Vector;
 
 		/// <summary>
 		/// コマンドキュー
@@ -55,6 +55,9 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		ComputeKernel addEachLocalValuesToTopKernel;
 
+
+		ComputeKernel sumEachColumnValuesKernel;
+
 		/// <summary>
 		/// ローカルメモリ内の最大値を先頭に格納する
 		/// </summary>
@@ -70,12 +73,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 列番号
 		/// </summary>
-		ComputeBuffer<long> bufferAColumnIndeces;
+		ComputeBuffer<int> bufferAColumnIndeces;
 		
 		/// <summary>
 		/// 非ゼロ要素数
 		/// </summary>
-		ComputeBuffer<long> bufferANonzeroCounts;
+		ComputeBuffer<int> bufferANonzeroCounts;
 
 		/// <summary>
 		/// 生成項
@@ -134,7 +137,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradientCL(long count, long maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradientCL(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
 			// プラットフォームとデバイス群を取得
@@ -150,8 +153,8 @@ namespace LWisteria.MgcgCL
 
 			// バッファーを作成
 			bufferA = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
-			bufferAColumnIndeces = new ComputeBuffer<long>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
-			bufferANonzeroCounts = new ComputeBuffer<long>(context, ComputeMemoryFlags.ReadOnly, this.Count);
+			bufferAColumnIndeces = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
+			bufferANonzeroCounts = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count);
 			bufferB = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadOnly, this.Count);
 			bufferX = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 			bufferAp = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
@@ -189,14 +192,15 @@ namespace LWisteria.MgcgCL
 			columnVectorToRowKernel = program.CreateKernel("ColumnVectorToRow");
 			addEachLocalValuesToTopKernel = program.CreateKernel("AddEachLocalValuesToTop");
 			storeMaxEachLocalValuesToTopKernel = program.CreateKernel("StoreMaxEachLocalValuesToTop");
+			sumEachColumnValuesKernel = program.CreateKernel("SumEachColumnValues");
 			
 			// 行列とベクトルの積の場合は、1行あたりの最大列数に近い2^nで1グループを回す
 			this.localSizeForMatrix_x_Vector = Math.Min(
-				(long)Math.Pow(2, Math.Ceiling(Math.Log(this.A.MaxNonzeroCountPerRow, 2))),
-				devices[0].MaxWorkGroupSize);
+				(int)Math.Pow(2, Math.Ceiling(Math.Log(this.A.MaxNonzeroCountPerRow, 2))),
+				(int)devices[0].MaxWorkGroupSize);
 
 			// 内積の計算の場合は、回せる最大の数
-			this.localSizeForDot = devices[0].MaxWorkGroupSize;
+			this.localSizeForDot = (int)devices[0].MaxWorkGroupSize;
 		}
 
 
@@ -293,7 +297,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="left">足されるベクトル</param>
 		/// <param name="right">足すベクトル</param>
 		/// <param name="C">足すベクトルに掛ける係数</param>
-		void VectorPlusVector(ComputeBuffer<double> answer, ComputeBuffer<double> left, ComputeBuffer<double> right, double C = 1.0)
+		void VectorPlusVector(ComputeBuffer<double> answer, ComputeBuffer<double> left, ComputeBuffer<double> right, double C = 1)
 		{
 			// 各要素同士の足し算を実行
 			//  # 解を格納するベクトル
@@ -343,7 +347,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="columnIndeces">列番号</param>
 		/// <param name="nonzeroCounts">非ゼロ要素数</param>
 		/// <param name="vector">ベクトル</param>
-		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<long> columnIndeces, ComputeBuffer<long> nonzeroCounts, ComputeBuffer<double> vector)
+		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<int> columnIndeces, ComputeBuffer<int> nonzeroCounts, ComputeBuffer<double> vector)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
@@ -358,6 +362,9 @@ namespace LWisteria.MgcgCL
 
 			// リダクションで各行の和をとる
 			SumEachRow(this.Count, this.A.MaxNonzeroCountPerRow, bufferForMatrix_x_Vector, localSizeForMatrix_x_Vector);
+			//sumEachColumnValuesKernel.SetValueArgument(0, this.A.MaxNonzeroCountPerRow);
+			//sumEachColumnValuesKernel.SetMemoryArgument(1, bufferForMatrix_x_Vector);
+			//queue.Execute(sumEachColumnValuesKernel, null, new long[] { this.Count }, null, null);
 
 			// 縦ベクトルを横ベクトルに変換して、結果に格納
 			//  # 配列
@@ -376,16 +383,16 @@ namespace LWisteria.MgcgCL
 		/// <param name="columnCount">列数</param>
 		/// <param name="target">総和をとる対象の行列</param>
 		/// <param name="localSize">ワークグループ内ワークアイテム数</param>
-		void SumEachRow(long rowCount, long columnCount, ComputeBuffer<double> target, long localSize)
+		void SumEachRow(int rowCount, int columnCount, ComputeBuffer<double> target, int localSize)
 		{
 			// 以前の大きさを設定
-			long oldSize = columnCount;
+			int oldSize = columnCount;
 
 			// リダクションの計算が終了するまで書く大きさで
-			for (long thisSize = oldSize; oldSize > 1; thisSize /= localSize)
+			for (int thisSize = oldSize; oldSize > 1; thisSize /= localSize)
 			{
 				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				thisSize = localSize * (long)Math.Ceiling((double)oldSize / localSize);
+				thisSize = localSize * (int)Math.Ceiling((double)oldSize / localSize);
 
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 今回計算する要素数
@@ -411,15 +418,15 @@ namespace LWisteria.MgcgCL
 			queue.CopyBuffer(target, bufferForMax, null);
 
 			// 以前の大きさを設定
-			long oldSize = this.Count;
+			int oldSize = this.Count;
 
-			long localSize = this.localSizeForDot;
+			int localSize = this.localSizeForDot;
 
 			// リダクションの計算が終了するまで書く大きさで
-			for(long thisSize = oldSize; oldSize > 1; thisSize /= localSize)
+			for(int thisSize = oldSize; oldSize > 1; thisSize /= localSize)
 			{
 				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				thisSize = localSize * (long)Math.Ceiling((double)oldSize / localSize);
+				thisSize = localSize * (int)Math.Ceiling((double)oldSize / localSize);
 
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 今回計算する要素数

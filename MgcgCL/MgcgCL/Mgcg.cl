@@ -69,25 +69,25 @@ __kernel void MultiplyEachVector(
 __kernel void MultiplyMatrixVector(
 	__global double* answer,
 	__global const double* matrixElements,
-	__global const long* matrixColumnIndeces,
-	__global const long* matrixNonzeroCounts,
+	__global const int* matrixColumnIndeces,
+	__global const int* matrixNonzeroCounts,
 	__global const double* vector)
 {
 	// get maximum number of elements
-	long maxNonzeroCount = get_global_size(1);
+	int maxNonzeroCount = get_global_size(1);
 
 	// get element index
-	long i = get_global_id(0);
-	long k = get_global_id(1);
+	int i = get_global_id(0);
+	int k = get_global_id(1);
 	
 	// get global index in matrix
-	long matrixIndex = i*maxNonzeroCount + k;
+	int matrixIndex = i*maxNonzeroCount + k;
 
 	// if this is not zero value
 	if(k < matrixNonzeroCounts[i])
 	{
 		// get columnIndex;
-		long j = matrixColumnIndeces[matrixIndex];
+		int j = matrixColumnIndeces[matrixIndex];
 
 		// multiply
 		answer[matrixIndex] = matrixElements[matrixIndex] * vector[j];
@@ -109,10 +109,10 @@ __kernel void MultiplyMatrixVector(
 __kernel void ColumnVectorToRow(
 	__global double* rowVector,
 	__global const double* columnVector,
-	const long rowCount)
+	const int rowCount)
 {
 	// get number and index
-	long i = get_global_id(0);
+	int i = get_global_id(0);
 
 	// store element
 	rowVector[i] = columnVector[i*rowCount];
@@ -125,26 +125,26 @@ __kernel void ColumnVectorToRow(
 	\param target vector
 */
 __kernel void AddEachLocalValuesToTop(
-	const long count,
-	const long maxCount,
+	const int count,
+	const int maxCount,
 	__global double* values,
 	__local double* localValues)
 {
 	// get number and index
-	const long globalIndexI = get_global_id(0);
-	const long localIndexJ = get_local_id(1);
-	const long localSizeJ = get_local_size(1);
-	const long groupIndexJ = get_group_id(1);
-	const long groupSizeJ = get_num_groups(1);
+	const int globalIndexI = get_global_id(0);
+	const int localIndexJ = get_local_id(1);
+	const int localSizeJ = get_local_size(1);
+	const int groupIndexJ = get_group_id(1);
+	const int groupSizeJ = get_num_groups(1);
 	
 	// calculate offset by row number
-	const long rowOffset = globalIndexI*maxCount;
+	const int rowOffset = globalIndexI*maxCount;
 
 	// calculate local and global total index
-	const long localIndex1 = 2*localIndexJ;
-	const long localIndex2 = localIndex1+1;
-	const long globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
-	const long globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
+	const int localIndex1 = 2*localIndexJ;
+	const int localIndex2 = localIndex1+1;
+	const int globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
+	const int globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
 
 	// copy values to local from grobal
 	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? values[globalIndex1] : 0;
@@ -154,7 +154,7 @@ __kernel void AddEachLocalValuesToTop(
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// while reduction
-	for(long thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
+	for(int thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
 	{
 		// only in target region for reduction
 		if(localIndexJ < thisSize)
@@ -177,6 +177,27 @@ __kernel void AddEachLocalValuesToTop(
 	}
 }
 
+//! Add each values on second half of a row to its first half
+/*!
+	\param count target size of column
+	\param maxCount maximum size of one column
+	\param target vector
+*/
+__kernel void SumEachColumnValues(
+	const int count,
+	__global double* values)
+{
+	// get number and index
+	const int i = get_global_id(0);
+
+	const int rowOffset = i*count;
+
+	for(int j = 1; j < count; j++)
+	{
+		values[rowOffset] += values[rowOffset+j];
+	}
+}
+
 
 
 //! Add each values on second half of a row to its first half
@@ -186,26 +207,26 @@ __kernel void AddEachLocalValuesToTop(
 	\param target vector
 */
 __kernel void StoreMaxEachLocalValuesToTop(
-	const long count,
-	const long maxCount,
+	const int count,
+	const int maxCount,
 	__global double* values,
 	__local double* localValues)
 {
 	// get number and index
-	const long globalIndexI = get_global_id(0);
-	const long localIndexJ = get_local_id(1);
-	const long localSizeJ = get_local_size(1);
-	const long groupIndexJ = get_group_id(1);
-	const long groupSizeJ = get_num_groups(1);
+	const int globalIndexI = get_global_id(0);
+	const int localIndexJ = get_local_id(1);
+	const int localSizeJ = get_local_size(1);
+	const int groupIndexJ = get_group_id(1);
+	const int groupSizeJ = get_num_groups(1);
 	
 	// calculate offset by row number
-	const long rowOffset = globalIndexI*maxCount;
+	const int rowOffset = globalIndexI*maxCount;
 
 	// calculate local and global total index
-	const long localIndex1 = 2*localIndexJ;
-	const long localIndex2 = localIndex1+1;
-	const long globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
-	const long globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
+	const int localIndex1 = 2*localIndexJ;
+	const int localIndex2 = localIndex1+1;
+	const int globalIndex1 = rowOffset + groupIndexJ + localIndex1 + ((localIndexJ == 0) ? 0 : groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2));
+	const int globalIndex2 = rowOffset + groupIndexJ + localIndex2 +                           groupSizeJ-1 + groupIndexJ*(localSizeJ*2-2);
 
 	// copy values to local from grobal
 	localValues[localIndex1] = (globalIndex1 - rowOffset < count) ? fabs(values[globalIndex1]) : 0;
@@ -215,7 +236,7 @@ __kernel void StoreMaxEachLocalValuesToTop(
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	// while reduction
-	for(long thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
+	for(int thisSize = localSizeJ; thisSize >= 1; thisSize/=2)
 	{
 		// only in target region for reduction
 		if(localIndexJ < thisSize)

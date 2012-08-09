@@ -12,12 +12,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const long COUNT = 100000;
+		const int COUNT = 100000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
 		/// </summary>
-		const int MAX_NONZERO_COUNT = 6;
+		const int MAX_NONZERO_COUNT = 30;
 
 		/// <summary>
 		/// 最小繰り返し回数
@@ -32,7 +32,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 収束誤差
 		/// </summary>
-		const double ALLOWABLE_RESIDUAL = 1e-8;
+		const double ALLOWABLE_RESIDUAL = 1e-3f;
 
 		/// <summary>
 		/// エントリポイント
@@ -48,26 +48,24 @@ namespace LWisteria.MgcgCL
 			var cgCL = new ConjugateGradientCL(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
 
 			// 係数行列の初期化
-			for(long i = 0; i < COUNT; i++)
+			for(int i = 0; i < COUNT; i++)
 			{
 				cgCpu.A[i, i] = 0;
-				cgCpu.isEnabled[i] = true;
 
 				cgCL.A[i, i] = 0;
-				cgCL.isEnabled[i] = true;
 			}
 
 			// 各行で
 			Parallel.For(0, COUNT, (i) =>
-			//for(long i = 0; i < COUNT - 1; i++)
+			//for(int i = 0; i < COUNT - 1; i++)
 			{
 				// 各列で
-				for(long j = Math.Max(0, i - MAX_NONZERO_COUNT / 2 + 1); j < Math.Min(COUNT, i + MAX_NONZERO_COUNT / 2); j++)
+				for(int j = (int)Math.Max(0, i - MAX_NONZERO_COUNT / 2 + 1); j < Math.Min(COUNT, i + MAX_NONZERO_COUNT / 2); j++)
 				{
 					if(i != j)
 					{
 						// 要素を計算
-						var a_ij = Math.Abs(Math.Sin(i + j));
+						var a_ij = (double)Math.Abs(Math.Sin(i + j));
 
 						// 要素を設定
 						cgCpu.A[i, j] = a_ij;
@@ -80,7 +78,7 @@ namespace LWisteria.MgcgCL
 				}
 
 				// 生成項を設定
-				double b_i = i * 0.01;
+				double b_i = i * 0.01f;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
 
@@ -91,9 +89,9 @@ namespace LWisteria.MgcgCL
 			}
 			);
 
-			//for(long i = 0; i < COUNT; i++)
+			//for(int i = 0; i < COUNT; i++)
 			//{
-			//    for(long j = 0; j < COUNT; j++)
+			//    for(int j = 0; j < COUNT; j++)
 			//    {
 			//        Console.Write("{0,5:f} ", cgCpu.A[i, j]);
 			//    }
@@ -106,7 +104,7 @@ namespace LWisteria.MgcgCL
 			//// 固有値を計算
 			//var eigenValues = new System.Collections.Generic.List<double>(cgCpu.A.GetEigenValues(MAX_ITERATION, ALLOWABLE_RESIDUAL));
 
-			//eigenValues.Sort((Comparison<double>)((x,y)=>(x == y) ? 0 : (x < y)? 1 : -1));
+			//eigenValues.Sort((Comparison<double>)((x, y) => (x == y) ? 0 : (x < y) ? 1 : -1));
 
 			//// 固有値を表示
 			//foreach(var eigenValue in eigenValues)
@@ -133,7 +131,7 @@ namespace LWisteria.MgcgCL
 			stopwatch.Stop();
 			var clTime = stopwatch.ElapsedMilliseconds;
 
-			for(long i = 0; i < COUNT; i++)
+			for(int i = 0; i < COUNT; i++)
 			{
 				double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
 

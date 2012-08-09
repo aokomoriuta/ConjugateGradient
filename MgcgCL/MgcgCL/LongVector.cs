@@ -15,11 +15,11 @@ namespace LWisteria.MgcgCL.LongVector
 		public static double Dot(this double[] left, double[] right)
 		{
 			// 解
-			double answer = 0.0;
+			double answer = 0;
 
 			// 全要素について
-			//Parallel.For(0, left.LongLength, (i)=>
-			for(long i = 0; i < left.Length; i++)
+			//Parallel.For(0, left.Length, (i)=>
+			for(int i = 0; i < left.Length; i++)
 			{
 				// 各要素をかけたものを解に追加
 				answer += left[i] * right[i];
@@ -41,8 +41,8 @@ namespace LWisteria.MgcgCL.LongVector
 		public static void SetAdded(this double[] answer, double[] left, double[] right, double a)
 		{
 			// 全要素について
-			//Parallel.For(0, left.LongLength, (i) =>
-			for(long i = 0; i < answer.Length; i++)
+			//Parallel.For(0, left.Length, (i) =>
+			for(int i = 0; i < answer.Length; i++)
 			{
 				// 答えベクトルを計算
 				answer[i] = left[i] + a * right[i];
@@ -61,7 +61,7 @@ namespace LWisteria.MgcgCL.LongVector
 			double max = System.Math.Abs(vector[0]);
 
 			// 残りの要素のうち
-			for(long i = 1; i < vector.Length; i++)
+			for(int i = 1; i < vector.Length; i++)
 			{
 				// 最大のものを探す
 				max = System.Math.Max(System.Math.Abs(vector[i]), max);

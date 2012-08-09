@@ -27,7 +27,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 繰り返し回数
 		/// </summary>
-		public long Iteration { get; protected set; }
+		public int Iteration { get; protected set; }
 
 		/// <summary>
 		/// 共役勾配法を生成する
@@ -37,7 +37,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration">最小繰り返し回数</param>
 		/// <param name="_maxIteration">最大繰り返し回数</param>
 		/// <param name="_allowableResidual">収束誤差</param>
-		public ConjugateGradient(long count, long maxNonZeroCount, int _minIteration, int _maxIteration, double _allowableResidual)
+		public ConjugateGradient(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double _allowableResidual)
 			: base(count, maxNonZeroCount)
 		{
 			// 最小・最大繰り返し回数を設定
@@ -55,7 +55,7 @@ namespace LWisteria.MgcgCL
 		/// <returns>繰り返し回数と収束誤差から判定した結果</returns>
 		protected bool IsConverged(double r)
 		{
-			Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
+			//Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
 
 			// 最小繰り返し回数未満なら
 			if(this.Iteration < this.minIteration)

@@ -15,31 +15,31 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// その要素の列番号
 		/// </summary>
-		internal readonly long[] ColumnIndeces;
+		internal readonly int[] ColumnIndeces;
 
 		/// <summary>
 		/// その行の非ゼロ要素数
 		/// </summary>
-		internal readonly long[] NonzeroCounts;
+		internal readonly int[] NonzeroCounts;
 
 		/// <summary>
 		/// 1行あたりの最大非ゼロ要素数
 		/// </summary>
-		public readonly long MaxNonzeroCountPerRow;
+		public readonly int MaxNonzeroCountPerRow;
 
 		/// <summary>
 		/// 疎行列を生成する
 		/// </summary>
 		/// <param name="rowCount">行数</param>
 		/// <param name="maxNonzeroCountPerRow">1行あたりの非ゼロ要素の最大数</param>
-		public SparseMatrix(long rowCount, long maxNonzeroCountPerRow)
+		public SparseMatrix(int rowCount, int maxNonzeroCountPerRow)
 		{
 			// 要素と列番号配列を初期化
 			this.Elements = new double[rowCount* maxNonzeroCountPerRow];
-			this.ColumnIndeces = new long[rowCount* maxNonzeroCountPerRow];
+			this.ColumnIndeces = new int[rowCount* maxNonzeroCountPerRow];
 
 			// 非ゼロ要素数を初期化
-			this.NonzeroCounts = new long[rowCount];
+			this.NonzeroCounts = new int[rowCount];
 			this.Clear();
 			
 			// 1行あたりの最大非ゼロ要素数を設定
@@ -52,7 +52,7 @@ namespace LWisteria.MgcgCL
 		public void Clear()
 		{
 			// すべての非ゼロ要素数を
-			for(long i = 0; i < NonzeroCounts.Length; i++)
+			for(int i = 0; i < NonzeroCounts.Length; i++)
 			{
 				// 1にする
 				this.NonzeroCounts[i] = 1;
@@ -68,7 +68,7 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		/// <param name="i">行番号および列番号</param>
 		/// <returns>対角成分</returns>
-		double this[long i]
+		double this[int i]
 		{
 			// 取得
 			get
@@ -93,7 +93,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="i">行番号</param>
 		/// <param name="j">列番号</param>
 		/// <returns>i行目j列目の要素</returns>
-		public double this[long i, long j]
+		public double this[int i, int j]
 		{
 			// 取得
 			get
@@ -106,7 +106,7 @@ namespace LWisteria.MgcgCL
 				}
 
 				// 要素番号を取得
-				long k = this.GetLocalIndex(i, j);
+				int k = this.GetLocalIndex(i, j);
 
 				// 有効な要素番号なら
 				if(k >= 0)
@@ -130,7 +130,7 @@ namespace LWisteria.MgcgCL
 				else
 				{
 					// 要素番号を取得
-					long k = this.GetLocalIndex(i, j);
+					int k = this.GetLocalIndex(i, j);
 
 					// 新しい要素なら
 					if(k < 0)
@@ -162,13 +162,13 @@ namespace LWisteria.MgcgCL
 		/// <param name="i">行番号</param>
 		/// <param name="j">列番号</param>
 		/// <returns>要素配列にその要素の格納されている場所</returns>
-		long GetLocalIndex(long i, long j)
+		int GetLocalIndex(int i, int j)
 		{
 			// 先頭を設定
-			long first = i * this.MaxNonzeroCountPerRow;
+			int first = i * this.MaxNonzeroCountPerRow;
 
 			// その行のすべての非ゼロ要素に対して
-			for(long k = 1; k < this.NonzeroCounts[i]; k++)
+			for(int k = 1; k < this.NonzeroCounts[i]; k++)
 			{
 				// 列番号が一致すれば
 				if(this.ColumnIndeces[first + k] == j)
@@ -188,7 +188,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="i">行番号</param>
 		/// <param name="k">行内での要素番号</param>
 		/// <returns>全体での要素番号</returns>
-		long GetGlobalIndex(long i, long k)
+		int GetGlobalIndex(int i, int k)
 		{
 			return i * this.MaxNonzeroCountPerRow + k;
 		}
@@ -199,34 +199,25 @@ namespace LWisteria.MgcgCL
 		/// <param name="answer">演算結果を格納するベクトル</param>
 		/// <param name="vector">右ベクトル</param>
 		/// <param name="isEnabled">その要素が有効かどうかを表す配列</param>
-		internal void Multiply(double[] answer, double[] vector, bool[] isEnabled)
+		internal void Multiply(double[] answer, double[] vector)
 		{
 			// 各行について
-			//Parallel.For(0, answer.LongLength, (i) =>
-			for(long i = 0; i < answer.Length; i++)
+			//Parallel.For(0, answer.Length, (i) =>
+			for(int i = 0; i < answer.Length; i++)
 			{
 				// 解をゼロに設定
 				answer[i] = 0;
-
-				// その行が有効なら
-				if(isEnabled[i])
+				// その行のすべての非ゼロ要素に対して
+				for(int k = 0; k < this.NonzeroCounts[i]; k++)
 				{
-					// その行のすべての非ゼロ要素に対して
-					for(long k = 0; k < this.NonzeroCounts[i]; k++)
-					{
-						// 配列番号を取得
-						long index = this.GetGlobalIndex(i, k);
+					// 配列番号を取得
+					int index = this.GetGlobalIndex(i, k);
 
-						// 列番号を取得
-						long j = this.ColumnIndeces[index];
+					// 列番号を取得
+					int j = this.ColumnIndeces[index];
 
-						// その列が有効なら
-						if(isEnabled[j])
-						{
-							// 解に積を加える
-							answer[i] += this.Elements[index] * vector[j];
-						}
-					}
+					// 解に積を加える
+					answer[i] += this.Elements[index] * vector[j];
 				}
 			}
 			//);
@@ -246,19 +237,19 @@ namespace LWisteria.MgcgCL
 			double[,] A = new double[this.RowCount, this.RowCount];
 
 			// 全行について
-			for(long i = 0; i < this.RowCount; i++)
+			for(int i = 0; i < this.RowCount; i++)
 			{
 				// 対角成分を設定
 				A[i, i] = this.Elements[this.GetGlobalIndex(i, 0)];
 
 				// その行のすべての非ゼロ要素に対して
-				for(long k = 1; k < this.NonzeroCounts[i]; k++)
+				for(int k = 1; k < this.NonzeroCounts[i]; k++)
 				{
 					// 番号を取得
-					long index = this.GetGlobalIndex(i, k);
+					int index = this.GetGlobalIndex(i, k);
 
 					// 列番号を取得
-					long j = this.ColumnIndeces[index];
+					int j = this.ColumnIndeces[index];
 
 					// 上側であれば
 					if(i >= j)
@@ -277,23 +268,23 @@ namespace LWisteria.MgcgCL
 			bool converged = false;
 
 			// 最大値の行番号および列番号を初期化
-			long p = 0;
-			long q = 0;
+			int p = 0;
+			int q = 0;
 
 			// 収束するまで繰り返す
-			for(long iteration = 0; !converged; iteration++)
+			for(int iteration = 0; !converged; iteration++)
 			{
 				// 前の最大値の行番号および列番号を記憶
-				long oldP = p;
-				long oldQ = q;
+				int oldP = p;
+				int oldQ = q;
 				
 				// 最大値を初期化
 				double maxValue = residual / 10;
 
 				// 全要素について
-				for(long i = 0; i < this.RowCount; i++)
+				for(int i = 0; i < this.RowCount; i++)
 				{
-					for(long j = 0; j < this.RowCount; j++)
+					for(int j = 0; j < this.RowCount; j++)
 					{
 						// 非対角要素なら
 						if(i != j)
@@ -329,9 +320,9 @@ namespace LWisteria.MgcgCL
 					//  * sinθ = √((1-γ)/2) sing(αβ)
 					double alpha = (A[p, p] - A[q, q]) / 2;
 					double beta = -A[p, q];
-					double gamma = Math.Abs(alpha) / Math.Sqrt(alpha * alpha + beta * beta);
-					double cos = Math.Sqrt((1 + gamma) / 2);
-					double sin = Math.Sqrt((1 - gamma) / 2) * Math.Sign(alpha * beta);
+					double gamma = (double)(Math.Abs(alpha) / Math.Sqrt(alpha * alpha + beta * beta));
+					double cos = (double)Math.Sqrt((1 + gamma) / 2);
+					double sin = (double)Math.Sqrt((1 - gamma) / 2) * Math.Sign(alpha * beta);
 
 					// 対象成分を取得
 					double a_pp = A[p, p];
@@ -383,12 +374,12 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 行数を取得する
 		/// </summary>
-		public long RowCount
+		public int RowCount
 		{
 			get
 			{
 				// 非ゼロ要素数の灰列数
-				return this.NonzeroCounts.LongLength;
+				return this.NonzeroCounts.Length;
 			}
 		}
 	}
