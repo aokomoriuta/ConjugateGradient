@@ -55,7 +55,7 @@ namespace LWisteria.MgcgCL
 		/// <returns>繰り返し回数と収束誤差から判定した結果</returns>
 		protected bool IsConverged(double r)
 		{
-			//Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
+			Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
 
 			// 最小繰り返し回数未満なら
 			if(this.Iteration < this.minIteration)
@@ -67,7 +67,7 @@ namespace LWisteria.MgcgCL
 			else if(this.Iteration > this.maxIteration)
 			{
 				// 例外
-				throw new System.ApplicationException("圧力方程式が収束しませんでした。");
+				throw new System.ApplicationException(string.Format("圧力方程式が収束しませんでした。\nr:{0}\ni:{1}", r, this.Iteration));
 			}
 
 			// 誤差が収束判定誤差より小さいかどうかを計算

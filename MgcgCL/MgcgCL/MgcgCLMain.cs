@@ -12,7 +12,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int COUNT = 100000;
+		const int COUNT = 1500;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -27,7 +27,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		const int MAX_ITERATION = 200;
+		const int MAX_ITERATION = 20000;
 
 		/// <summary>
 		/// 収束誤差
@@ -72,8 +72,8 @@ namespace LWisteria.MgcgCL
 						cgCL.A[i, j] = a_ij;
 
 						// 対角成分に追加
-						cgCpu.A[i, i] += a_ij;
-						cgCL.A[i, i] += a_ij;
+						cgCpu.A[i, i] += a_ij/20;
+						cgCL.A[i, i] += a_ij/20;
 					}
 				}
 
@@ -118,32 +118,39 @@ namespace LWisteria.MgcgCL
 			// ストップウォッチを作成
 			var stopwatch = new System.Diagnostics.Stopwatch();
 
-
-			// CPUで方程式を解く
-			stopwatch.Restart();
-			cgCpu.Solve();
-			stopwatch.Stop();
-			var cpuTime = stopwatch.ElapsedMilliseconds;
-
-			// OpenCLで方程式を解く
-			stopwatch.Restart();
-			cgCL.Solve();
-			stopwatch.Stop();
-			var clTime = stopwatch.ElapsedMilliseconds;
-
-			for(int i = 0; i < COUNT; i++)
+			try
 			{
-				double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
 
-				if(residual > ALLOWABLE_RESIDUAL)
+				// CPUで方程式を解く
+				stopwatch.Restart();
+				cgCpu.Solve();
+				stopwatch.Stop();
+				var cpuTime = stopwatch.ElapsedMilliseconds;
+
+				// OpenCLで方程式を解く
+				stopwatch.Restart();
+				cgCL.Solve();
+				stopwatch.Stop();
+				var clTime = stopwatch.ElapsedMilliseconds;
+
+				for(int i = 0; i < COUNT; i++)
 				{
-					Console.WriteLine("{0,4}: {1:e}", i, residual);
-				}
-			}
+					double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
 
-			// かかった時間を表示
-			Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
-			Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime / cgCL.Iteration);
+					if(residual > ALLOWABLE_RESIDUAL)
+					{
+						Console.WriteLine("{0,4}: {1:e}", i, residual);
+					}
+				}
+
+				// かかった時間を表示
+				Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
+				Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime / cgCL.Iteration);
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine("!!!!{0}", ex.Message);
+			}
 
 			// 終了
 			Console.WriteLine("終了します");
