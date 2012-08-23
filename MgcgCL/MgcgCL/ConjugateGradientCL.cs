@@ -1,6 +1,7 @@
 ﻿using LWisteria.MgcgCL.LongVector;
 using Cloo;
 using System;
+using System.Collections.Generic;
 
 namespace LWisteria.MgcgCL
 {
@@ -20,9 +21,9 @@ namespace LWisteria.MgcgCL
 		readonly int localSizeForMatrix_x_Vector;
 
 		/// <summary>
-		/// コマンドキュー
+		/// コマンドキュー群
 		/// </summary>
-		ComputeCommandQueue queue;
+		readonly ComputeCommandQueue[] queues;
 
 		#region カーネル
 		/// <summary>
@@ -68,7 +69,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 係数行列
 		/// </summary>
-		ComputeBuffer<double> bufferA;
+		ComputeBuffer<float> bufferA;
 
 		/// <summary>
 		/// 列番号
@@ -83,49 +84,49 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 生成項
 		/// </summary>
-		ComputeBuffer<double> bufferB;
+		ComputeBuffer<float> bufferB;
 
 		/// <summary>
 		/// 未知数
 		/// </summary>
-		ComputeBuffer<double> bufferX;
+		ComputeBuffer<float> bufferX;
 
 		/// <summary>
 		/// 係数行列と探索方向ベクトルの積
 		/// </summary>
-		ComputeBuffer<double> bufferAp;
+		ComputeBuffer<float> bufferAp;
 
 		/// <summary>
 		/// 探索方向
 		/// </summary>
-		ComputeBuffer<double> bufferP;
+		ComputeBuffer<float> bufferP;
 
 		/// <summary>
 		/// 残差
 		/// </summary>
-		ComputeBuffer<double> bufferR;
+		ComputeBuffer<float> bufferR;
 
 
 		/// <summary>
 		/// 内積計算に使うバッファー
 		/// </summary>
-		ComputeBuffer<double> bufferForDot;
+		ComputeBuffer<float> bufferForDot;
 
 		/// <summary>
 		/// 内積の解
 		/// </summary>
-		double[] answerForDot;
+		float[] answerForDot;
 
 		/// <summary>
 		/// 行列とベクトルの積の計算に使うバッファー
 		/// </summary>
-		ComputeBuffer<double> bufferForMatrix_x_Vector;
+		ComputeBuffer<float> bufferForMatrix_x_Vector;
 
 
 		/// <summary>
 		/// 最大値の算出に使うバッファー
 		/// </summary>
-		ComputeBuffer<double> bufferForMax;
+		ComputeBuffer<float> bufferForMax;
 		#endregion
 
 
@@ -137,35 +138,43 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradientCL(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradientCL(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, float allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
-			// プラットフォームとデバイス群を取得
+			// プラットフォームを取得
 			var platform = ComputePlatform.Platforms[0];
-			var devices = platform.Devices;
 
 			// コンテキストを作成
-			var context = new ComputeContext(devices, new ComputeContextPropertyList(platform), null, IntPtr.Zero);
+			var context = new ComputeContext(Cloo.ComputeDeviceTypes.Gpu, new ComputeContextPropertyList(platform), null, IntPtr.Zero);
 
-			// キューを作成
-			queue = new ComputeCommandQueue(context, devices[0], ComputeCommandQueueFlags.None);
+			// 利用可能なデバイス群を取得
+			var devices = context.Devices;
 
+			// キューの配列を作成
+			queues = new ComputeCommandQueue[devices.Count];
+
+			// 利用可能なデバイスすべてに対して
+			for(int i = 0; i < devices.Count; i++)
+			{
+				// キューを作成
+				queues[i] = new ComputeCommandQueue(context, devices[i], ComputeCommandQueueFlags.None);
+			}
 
 			// バッファーを作成
-			bufferA = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
+			bufferA = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
 			bufferAColumnIndeces = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
 			bufferANonzeroCounts = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count);
-			bufferB = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadOnly, this.Count);
-			bufferX = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
-			bufferAp = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
-			bufferP = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
-			bufferR = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferB = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly, this.Count);
+			bufferX = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferAp = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferP = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferR = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 
 			// 計算に使うバッファーを作成
-			bufferForDot = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
-			answerForDot = new double[1];
-			bufferForMatrix_x_Vector = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count * this.A.MaxNonzeroCountPerRow);
-			bufferForMax = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferForDot = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			answerForDot = new float[1];
+			bufferForMatrix_x_Vector = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count * this.A.MaxNonzeroCountPerRow);
+			bufferForMax = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 
 			// プログラムを作成
 			var program = new ComputeProgram(context, Properties.Resources.Mgcg);
@@ -209,12 +218,16 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		override public void Solve()
 		{
-			// データを転送
-			queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
-			queue.WriteToBuffer(this.b, bufferB, false, null);
-			queue.WriteToBuffer(this.x, bufferX, false, null);
-			queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
-			queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
+			// 全キューに対して
+			foreach(var queue in this.queues)
+			{
+				// データを転送
+				queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
+				queue.WriteToBuffer(this.b, bufferB, false, null);
+				queue.WriteToBuffer(this.x, bufferX, false, null);
+				queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
+				queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
+			}
 
 			//this.Matrix_x_Vector(bufferX, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferB);
 
@@ -226,7 +239,12 @@ namespace LWisteria.MgcgCL
 			 */
 			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
-			queue.CopyBuffer(bufferR, bufferP, null);
+
+			// 全キューに対して
+			foreach(var queue in this.queues)
+			{
+				queue.CopyBuffer(bufferR, bufferP, null);
+			}
 
 			// 収束したかどうか
 			bool converged = false;
@@ -242,9 +260,9 @@ namespace LWisteria.MgcgCL
 				 * x' += αp
 				 * r' -= αAp
 				 */
-				double rr = this.VectorDotVector(bufferR, bufferR);
+				float rr = this.VectorDotVector(bufferR, bufferR);
 				this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
-				double alpha = rr / this.VectorDotVector(bufferP, bufferAp);
+				float alpha = rr / this.VectorDotVector(bufferP, bufferAp);
 				this.VectorPlusVector(bufferX, bufferX, bufferP, alpha);
 				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
 
@@ -260,17 +278,17 @@ namespace LWisteria.MgcgCL
 					 * p = r' + βp
 					 * r'r' = r'・r'
 					 */
-					double rrNew = this.VectorDotVector(bufferR, bufferR);
-					double beta = rrNew / rr;
+					float rrNew = this.VectorDotVector(bufferR, bufferR);
+					float beta = rrNew / rr;
 					this.VectorPlusVector(bufferP, bufferR, bufferP, beta);
 				}
 			}
 
 			// 計算結果を読み込み
-			queue.ReadFromBuffer(bufferX, ref this.x, false, null);
+			queues[0].ReadFromBuffer(bufferX, ref this.x, false, null);
 
 			// ここまで待機
-			queue.Finish();
+			queues[0].Finish();
 		}
 
 
@@ -279,14 +297,14 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		/// <param name="vector">初期化するベクトル</param>
 		/// <param name="value">代入値</param>
-		void InitializeVector(ComputeBuffer<double> vector, double value = 0)
+		void InitializeVector(ComputeBuffer<float> vector, float value = 0)
 		{
 			// 各要素同士の足し算を実行
 			//  # 初期化先のベクトル
 			//  # 初期値
 			setAllVectorKernel.SetMemoryArgument(0, vector);
 			setAllVectorKernel.SetValueArgument(1, value);
-			queue.Execute(setAllVectorKernel, null, new long[] { this.Count }, null, null);
+			queues[0].Execute(setAllVectorKernel, null, new long[] { this.Count }, null, null);
 		}
 
 
@@ -297,7 +315,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="left">足されるベクトル</param>
 		/// <param name="right">足すベクトル</param>
 		/// <param name="C">足すベクトルに掛ける係数</param>
-		void VectorPlusVector(ComputeBuffer<double> answer, ComputeBuffer<double> left, ComputeBuffer<double> right, double C = 1)
+		void VectorPlusVector(ComputeBuffer<float> answer, ComputeBuffer<float> left, ComputeBuffer<float> right, float C = 1)
 		{
 			// 各要素同士の足し算を実行
 			//  # 解を格納するベクトル
@@ -308,7 +326,7 @@ namespace LWisteria.MgcgCL
 			plusEachVectorKernel.SetMemoryArgument(1, left);
 			plusEachVectorKernel.SetMemoryArgument(2, right);
 			plusEachVectorKernel.SetValueArgument(3, C);
-			queue.Execute(plusEachVectorKernel, null, new long[] { this.Count }, null, null);
+			queues[0].Execute(plusEachVectorKernel, null, new long[] { this.Count }, null, null);
 		}
 
 
@@ -318,7 +336,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="left">掛けられるベクトル</param>
 		/// <param name="right">掛けるベクトル</param>
 		/// <returns>内積（要素同士の積の和）</returns>
-		double VectorDotVector(ComputeBuffer<double> left, ComputeBuffer<double> right)
+		float VectorDotVector(ComputeBuffer<float> left, ComputeBuffer<float> right)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
@@ -327,13 +345,13 @@ namespace LWisteria.MgcgCL
 			multiplyEachVectorKernel.SetMemoryArgument(0, bufferForDot);
 			multiplyEachVectorKernel.SetMemoryArgument(1, left);
 			multiplyEachVectorKernel.SetMemoryArgument(2, right);
-			queue.Execute(multiplyEachVectorKernel, null, new long[] { this.Count }, null, null);
+			queues[0].Execute(multiplyEachVectorKernel, null, new long[] { this.Count }, null, null);
 
 			// リダクションで和をとる
 			SumEachRow(1, this.Count, bufferForDot, this.localSizeForDot);
 
 			// 結果を取得
-			queue.ReadFromBuffer(bufferForDot, ref answerForDot, true, 0, 0, 1, null);
+			queues[0].ReadFromBuffer(bufferForDot, ref answerForDot, true, 0, 0, 1, null);
 
 			// 結果を返す
 			return answerForDot[0];
@@ -347,7 +365,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="columnIndeces">列番号</param>
 		/// <param name="nonzeroCounts">非ゼロ要素数</param>
 		/// <param name="vector">ベクトル</param>
-		void Matrix_x_Vector(ComputeBuffer<double> answer, ComputeBuffer<double> matrix, ComputeBuffer<int> columnIndeces, ComputeBuffer<int> nonzeroCounts, ComputeBuffer<double> vector)
+		void Matrix_x_Vector(ComputeBuffer<float> answer, ComputeBuffer<float> matrix, ComputeBuffer<int> columnIndeces, ComputeBuffer<int> nonzeroCounts, ComputeBuffer<float> vector)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
@@ -358,7 +376,7 @@ namespace LWisteria.MgcgCL
 			multiplyMatrixVectorKernel.SetMemoryArgument(2, columnIndeces);
 			multiplyMatrixVectorKernel.SetMemoryArgument(3, nonzeroCounts);
 			multiplyMatrixVectorKernel.SetMemoryArgument(4, vector);
-			queue.Execute(multiplyMatrixVectorKernel, null, new long[] { this.Count, this.A.MaxNonzeroCountPerRow }, null, null);
+			queues[0].Execute(multiplyMatrixVectorKernel, null, new long[] { this.Count, this.A.MaxNonzeroCountPerRow }, null, null);
 
 			// リダクションで各行の和をとる
 			SumEachRow(this.Count, this.A.MaxNonzeroCountPerRow, bufferForMatrix_x_Vector, localSizeForMatrix_x_Vector);
@@ -373,7 +391,7 @@ namespace LWisteria.MgcgCL
 			columnVectorToRowKernel.SetMemoryArgument(0, answer);
 			columnVectorToRowKernel.SetMemoryArgument(1, bufferForMatrix_x_Vector);
 			columnVectorToRowKernel.SetValueArgument(2, this.A.MaxNonzeroCountPerRow);
-			queue.Execute(columnVectorToRowKernel, null, new long[] { this.Count }, null, null);
+			queues[0].Execute(columnVectorToRowKernel, null, new long[] { this.Count }, null, null);
 		}
 
 		/// <summary>
@@ -383,7 +401,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="columnCount">列数</param>
 		/// <param name="target">総和をとる対象の行列</param>
 		/// <param name="localSize">ワークグループ内ワークアイテム数</param>
-		void SumEachRow(int rowCount, int columnCount, ComputeBuffer<double> target, int localSize)
+		void SumEachRow(int rowCount, int columnCount, ComputeBuffer<float> target, int localSize)
 		{
 			// 以前の大きさを設定
 			int oldSize = columnCount;
@@ -392,7 +410,7 @@ namespace LWisteria.MgcgCL
 			for (int thisSize = oldSize; oldSize > 1; thisSize /= localSize)
 			{
 				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				thisSize = localSize * (int)Math.Ceiling((double)oldSize / localSize);
+				thisSize = localSize * (int)Math.Ceiling((float)oldSize / localSize);
 
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 今回計算する要素数
@@ -401,8 +419,8 @@ namespace LWisteria.MgcgCL
 				addEachLocalValuesToTopKernel.SetValueArgument(0, oldSize);
 				addEachLocalValuesToTopKernel.SetValueArgument(1, columnCount);
 				addEachLocalValuesToTopKernel.SetMemoryArgument(2, target);
-				addEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(double) * localSize);
-				queue.Execute(addEachLocalValuesToTopKernel, null, new long[] { rowCount, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
+				addEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(float) * localSize);
+				queues[0].Execute(addEachLocalValuesToTopKernel, null, new long[] { rowCount, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
 
 				// 今回の大きさを保存
 				oldSize = thisSize / localSize;
@@ -413,9 +431,9 @@ namespace LWisteria.MgcgCL
 		/// 行列の各行で総和を計算する
 		/// </summary>
 		/// <param name="target">総和をとる対象の行列</param>
-		double Max(ComputeBuffer<double> target)
+		float Max(ComputeBuffer<float> target)
 		{
-			queue.CopyBuffer(target, bufferForMax, null);
+			queues[0].CopyBuffer(target, bufferForMax, null);
 
 			// 以前の大きさを設定
 			int oldSize = this.Count;
@@ -426,7 +444,7 @@ namespace LWisteria.MgcgCL
 			for(int thisSize = oldSize; oldSize > 1; thisSize /= localSize)
 			{
 				// 前の大きさが奇数だった場合は1つ上の偶数にする
-				thisSize = localSize * (int)Math.Ceiling((double)oldSize / localSize);
+				thisSize = localSize * (int)Math.Ceiling((float)oldSize / localSize);
 
 				// 後半の値を前半の値に加える（リダクション）
 				//  # 今回計算する要素数
@@ -435,15 +453,15 @@ namespace LWisteria.MgcgCL
 				storeMaxEachLocalValuesToTopKernel.SetValueArgument(0, oldSize);
 				storeMaxEachLocalValuesToTopKernel.SetValueArgument(1, this.Count);
 				storeMaxEachLocalValuesToTopKernel.SetMemoryArgument(2, bufferForMax);
-				storeMaxEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(double) * localSize);
-				queue.Execute(storeMaxEachLocalValuesToTopKernel, null, new long[] { 1L, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
+				storeMaxEachLocalValuesToTopKernel.SetLocalArgument(3, sizeof(float) * localSize);
+				queues[0].Execute(storeMaxEachLocalValuesToTopKernel, null, new long[] { 1L, thisSize / 2 }, new long[] { 1L, localSize / 2 }, null);
 
 				// 今回の大きさを保存
 				oldSize = thisSize / localSize;
 			}
 
 			// 結果を取得
-			queue.ReadFromBuffer(bufferForMax, ref answerForDot, true, 0, 0, 1, null);
+			queues[0].ReadFromBuffer(bufferForMax, ref answerForDot, true, 0, 0, 1, null);
 
 			// 結果を返す
 			return answerForDot[0];

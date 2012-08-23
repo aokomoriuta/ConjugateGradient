@@ -12,7 +12,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int COUNT = 1500;
+		const int COUNT = 150000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -32,7 +32,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 収束誤差
 		/// </summary>
-		const double ALLOWABLE_RESIDUAL = 1e-3f;
+		const float ALLOWABLE_RESIDUAL = 1e-3f;
 
 		/// <summary>
 		/// エントリポイント
@@ -65,25 +65,25 @@ namespace LWisteria.MgcgCL
 					if(i != j)
 					{
 						// 要素を計算
-						var a_ij = (double)Math.Abs(Math.Sin(i + j));
+						var a_ij = (float)Math.Abs(Math.Sin(i + j));
 
 						// 要素を設定
 						cgCpu.A[i, j] = a_ij;
 						cgCL.A[i, j] = a_ij;
 
 						// 対角成分に追加
-						cgCpu.A[i, i] += a_ij/20;
-						cgCL.A[i, i] += a_ij/20;
+						cgCpu.A[i, i] += a_ij;
+						cgCL.A[i, i] += a_ij;
 					}
 				}
 
 				// 生成項を設定
-				double b_i = i * 0.01f;
+				float b_i = i * 0.01f;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
 
 				// 未知数を初期化
-				double x_i = 0;
+				float x_i = 0;
 				cgCpu.x[i] = x_i;
 				cgCL.x[i] = x_i;
 			}
@@ -102,9 +102,9 @@ namespace LWisteria.MgcgCL
 
 
 			//// 固有値を計算
-			//var eigenValues = new System.Collections.Generic.List<double>(cgCpu.A.GetEigenValues(MAX_ITERATION, ALLOWABLE_RESIDUAL));
+			//var eigenValues = new System.Collections.Generic.List<float>(cgCpu.A.GetEigenValues(MAX_ITERATION, ALLOWABLE_RESIDUAL));
 
-			//eigenValues.Sort((Comparison<double>)((x, y) => (x == y) ? 0 : (x < y) ? 1 : -1));
+			//eigenValues.Sort((Comparison<float>)((x, y) => (x == y) ? 0 : (x < y) ? 1 : -1));
 
 			//// 固有値を表示
 			//foreach(var eigenValue in eigenValues)
@@ -135,7 +135,7 @@ namespace LWisteria.MgcgCL
 
 				for(int i = 0; i < COUNT; i++)
 				{
-					double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
+					float residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
 
 					if(residual > ALLOWABLE_RESIDUAL)
 					{

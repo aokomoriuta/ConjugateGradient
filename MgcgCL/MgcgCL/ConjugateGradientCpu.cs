@@ -12,17 +12,17 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		///  残差ベクトル
 		/// </summary>
-		readonly double[] r;
+		readonly float[] r;
 
 		/// <summary>
 		/// 探索方向ベクトル
 		/// </summary>
-		readonly double[] p;
+		readonly float[] p;
 
 		/// <summary>
 		/// 係数行列と探索方向ベクトルの積
 		/// </summary>
-		readonly double[] Ap;
+		readonly float[] Ap;
 
 		/// <summary>
 		/// CPUでの共役勾配法を生成する
@@ -32,13 +32,13 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradientCpu(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradientCpu(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, float allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 	{
 			// 残差および探索方向と係数行列と探索方向の積を初期化
-			this.r = new double[count];
-			this.p = new double[count];
-			this.Ap = new double[count];
+			this.r = new float[count];
+			this.p = new float[count];
+			this.Ap = new float[count];
 		}
 
 		/// <summary>
@@ -70,9 +70,9 @@ namespace LWisteria.MgcgCL
 				 * x' += αp
 				 * r' -= αAp
 				 */
-				double rr = this.r.Dot(this.r);
+				float rr = this.r.Dot(this.r);
 				this.A.Multiply(this.Ap, this.p);
-				double alpha = rr / this.p.Dot(this.Ap);
+				float alpha = rr / this.p.Dot(this.Ap);
 				this.x.SetAdded(this.x, this.p, alpha);
 				this.r.SetAdded(this.r, this.Ap, -alpha);
 
@@ -88,8 +88,8 @@ namespace LWisteria.MgcgCL
 					 * β= r'r'/rLDLr
 					 * p = r' + βp
 					 */
-					double rrNew = this.r.Dot(this.r);
-					double beta = rrNew / rr;
+					float rrNew = this.r.Dot(this.r);
+					float beta = rrNew / rr;
 					this.p.SetAdded(this.r, this.p, beta);
 				}
 			}

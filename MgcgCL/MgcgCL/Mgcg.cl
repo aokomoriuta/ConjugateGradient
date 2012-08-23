@@ -8,8 +8,8 @@
 	\param value value to set
 */
 __kernel void SetAllVector(
-	__global double* vector,
-	const double value)
+	__global float* vector,
+	const float value)
 {
 	// get element index
 	int i = get_global_id(0);
@@ -27,10 +27,10 @@ __kernel void SetAllVector(
 	\param C coefficient for added vector
 */
 __kernel void PlusEachVector(
-	__global double* answer,
-	__global const double* left,
-	__global const double* right,
-	const double C)
+	__global float* answer,
+	__global const float* left,
+	__global const float* right,
+	const float C)
 {
 	// get element index
 	int i = get_global_id(0);
@@ -46,9 +46,9 @@ __kernel void PlusEachVector(
 	\param right multiplying vector
 */
 __kernel void MultiplyEachVector(
-	__global double* answer,
-	__global const double* left,
-	__global const double* right)
+	__global float* answer,
+	__global const float* left,
+	__global const float* right)
 {
 	// get element index
 	int i = get_global_id(0);
@@ -67,11 +67,11 @@ __kernel void MultiplyEachVector(
 	\param vector right vector
 */
 __kernel void MultiplyMatrixVector(
-	__global double* answer,
-	__global const double* matrixElements,
+	__global float* answer,
+	__global const float* matrixElements,
 	__global const int* matrixColumnIndeces,
 	__global const int* matrixNonzeroCounts,
-	__global const double* vector)
+	__global const float* vector)
 {
 	// get maximum number of elements
 	int maxNonzeroCount = get_global_size(1);
@@ -107,8 +107,8 @@ __kernel void MultiplyMatrixVector(
 	\param rowCount size of row of columnVector
 */
 __kernel void ColumnVectorToRow(
-	__global double* rowVector,
-	__global const double* columnVector,
+	__global float* rowVector,
+	__global const float* columnVector,
 	const int rowCount)
 {
 	// get number and index
@@ -127,8 +127,8 @@ __kernel void ColumnVectorToRow(
 __kernel void AddEachLocalValuesToTop(
 	const int count,
 	const int maxCount,
-	__global double* values,
-	__local double* localValues)
+	__global float* values,
+	__local float* localValues)
 {
 	// get number and index
 	const int globalIndexI = get_global_id(0);
@@ -185,7 +185,7 @@ __kernel void AddEachLocalValuesToTop(
 */
 __kernel void SumEachColumnValues(
 	const int count,
-	__global double* values)
+	__global float* values)
 {
 	// get number and index
 	const int i = get_global_id(0);
@@ -209,8 +209,8 @@ __kernel void SumEachColumnValues(
 __kernel void StoreMaxEachLocalValuesToTop(
 	const int count,
 	const int maxCount,
-	__global double* values,
-	__local double* localValues)
+	__global float* values,
+	__local float* localValues)
 {
 	// get number and index
 	const int globalIndexI = get_global_id(0);

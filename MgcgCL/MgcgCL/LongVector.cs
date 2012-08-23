@@ -12,10 +12,10 @@ namespace LWisteria.MgcgCL.LongVector
 		/// <param name="left">左ベクトル</param>
 		/// <param name="right">右ベクトル</param>
 		/// <returns>各要素の積和</returns>
-		public static double Dot(this double[] left, double[] right)
+		public static float Dot(this float[] left, float[] right)
 		{
 			// 解
-			double answer = 0;
+			float answer = 0;
 
 			// 全要素について
 			//Parallel.For(0, left.Length, (i)=>
@@ -38,7 +38,7 @@ namespace LWisteria.MgcgCL.LongVector
 		/// <param name="left">左ベクトル</param>
 		/// <param name="right">右ベクトル</param>
 		/// <param name="a">係数</param>
-		public static void SetAdded(this double[] answer, double[] left, double[] right, double a)
+		public static void SetAdded(this float[] answer, float[] left, float[] right, float a)
 		{
 			// 全要素について
 			//Parallel.For(0, left.Length, (i) =>
@@ -55,10 +55,10 @@ namespace LWisteria.MgcgCL.LongVector
 		/// </summary>
 		/// <param name="vector">探索するベクトル</param>
 		/// <returns>最大値</returns>
-		public static double Max(this double[] vector)
+		public static float Max(this float[] vector)
 		{
 			// 最初の要素で最大値を初期化
-			double max = System.Math.Abs(vector[0]);
+			float max = System.Math.Abs(vector[0]);
 
 			// 残りの要素のうち
 			for(int i = 1; i < vector.Length; i++)
