@@ -69,17 +69,17 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 係数行列
 		/// </summary>
-		ComputeBuffer<float> bufferA;
+		ComputeBuffer<float>[] buffersA;
 
 		/// <summary>
 		/// 列番号
 		/// </summary>
-		ComputeBuffer<int> bufferAColumnIndeces;
+		ComputeBuffer<int>[] buffersAColumnIndeces;
 		
 		/// <summary>
 		/// 非ゼロ要素数
 		/// </summary>
-		ComputeBuffer<int> bufferANonzeroCounts;
+		ComputeBuffer<int>[] buffersANonzeroCounts;
 
 		/// <summary>
 		/// 生成項
@@ -153,19 +153,26 @@ namespace LWisteria.MgcgCL
 			// キューの配列を作成
 			queues = new ComputeCommandQueue[devices.Count];
 
+			// バッファーの配列を生成
+			buffersA = new ComputeBuffer<float>[devices.Count];
+			buffersAColumnIndeces = new ComputeBuffer<int>[devices.Count];
+			buffersANonzeroCounts = new ComputeBuffer<int>[devices.Count];
+
 			// 利用可能なデバイスすべてに対して
 			for(int i = 0; i < devices.Count; i++)
 			{
 				// キューを作成
 				queues[i] = new ComputeCommandQueue(context, devices[i], ComputeCommandQueueFlags.None);
+
+				// バッファーを作成
+				buffersA[i] = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.UseHostPointer, this.A.Elements);
+				buffersAColumnIndeces[i] = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.UseHostPointer, this.A.ColumnIndeces);
+				buffersANonzeroCounts[i] = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.UseHostPointer, this.A.NonzeroCounts);
 			}
 
 			// バッファーを作成
-			bufferA = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
-			bufferAColumnIndeces = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count * this.A.MaxNonzeroCountPerRow);
-			bufferANonzeroCounts = new ComputeBuffer<int>(context, ComputeMemoryFlags.ReadOnly, this.Count);
-			bufferB = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly, this.Count);
-			bufferX = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			bufferB = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.UseHostPointer, this.b);
+			bufferX = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite | ComputeMemoryFlags.UseHostPointer, this.x);
 			bufferAp = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 			bufferP = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
 			bufferR = new ComputeBuffer<float>(context, ComputeMemoryFlags.ReadWrite, this.Count);
@@ -218,17 +225,6 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		override public void Solve()
 		{
-			// 全キューに対して
-			foreach(var queue in this.queues)
-			{
-				// データを転送
-				queue.WriteToBuffer(this.A.Elements, bufferA, false, null);
-				queue.WriteToBuffer(this.b, bufferB, false, null);
-				queue.WriteToBuffer(this.x, bufferX, false, null);
-				queue.WriteToBuffer(this.A.ColumnIndeces, bufferAColumnIndeces, false, null);
-				queue.WriteToBuffer(this.A.NonzeroCounts, bufferANonzeroCounts, false, null);
-			}
-
 			//this.Matrix_x_Vector(bufferX, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferB);
 
 			// 初期値を設定
@@ -237,13 +233,13 @@ namespace LWisteria.MgcgCL
 			 * r_0 = b - Ap
 			 * p_0 = (LDLr)_0
 			 */
-			this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferX);
+			this.Matrix_x_Vector(bufferAp, buffersA, buffersAColumnIndeces, buffersANonzeroCounts, bufferX);
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 
 			// 全キューに対して
-			foreach(var queue in this.queues)
+			//foreach(var queue in this.queues)
 			{
-				queue.CopyBuffer(bufferR, bufferP, null);
+				queues[0].CopyBuffer(bufferR, bufferP, null);
 			}
 
 			// 収束したかどうか
@@ -261,7 +257,7 @@ namespace LWisteria.MgcgCL
 				 * r' -= αAp
 				 */
 				float rr = this.VectorDotVector(bufferR, bufferR);
-				this.Matrix_x_Vector(bufferAp, bufferA, bufferAColumnIndeces, bufferANonzeroCounts, bufferP);
+				this.Matrix_x_Vector(bufferAp, buffersA, buffersAColumnIndeces, buffersANonzeroCounts, bufferP);
 				float alpha = rr / this.VectorDotVector(bufferP, bufferAp);
 				this.VectorPlusVector(bufferX, bufferX, bufferP, alpha);
 				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
@@ -365,16 +361,16 @@ namespace LWisteria.MgcgCL
 		/// <param name="columnIndeces">列番号</param>
 		/// <param name="nonzeroCounts">非ゼロ要素数</param>
 		/// <param name="vector">ベクトル</param>
-		void Matrix_x_Vector(ComputeBuffer<float> answer, ComputeBuffer<float> matrix, ComputeBuffer<int> columnIndeces, ComputeBuffer<int> nonzeroCounts, ComputeBuffer<float> vector)
+		void Matrix_x_Vector(ComputeBuffer<float> answer, ComputeBuffer<float>[] matrix, ComputeBuffer<int>[] columnIndeces, ComputeBuffer<int>[] nonzeroCounts, ComputeBuffer<float> vector)
 		{
 			// 各要素同士の掛け算を実行
 			//  # 解を格納するベクトル
 			//  # 掛けられる値
 			//  # 掛ける値
 			multiplyMatrixVectorKernel.SetMemoryArgument(0, bufferForMatrix_x_Vector);
-			multiplyMatrixVectorKernel.SetMemoryArgument(1, matrix);
-			multiplyMatrixVectorKernel.SetMemoryArgument(2, columnIndeces);
-			multiplyMatrixVectorKernel.SetMemoryArgument(3, nonzeroCounts);
+			multiplyMatrixVectorKernel.SetMemoryArgument(1, matrix[0]);
+			multiplyMatrixVectorKernel.SetMemoryArgument(2, columnIndeces[0]);
+			multiplyMatrixVectorKernel.SetMemoryArgument(3, nonzeroCounts[0]);
 			multiplyMatrixVectorKernel.SetMemoryArgument(4, vector);
 			queues[0].Execute(multiplyMatrixVectorKernel, null, new long[] { this.Count, this.A.MaxNonzeroCountPerRow }, null, null);
 

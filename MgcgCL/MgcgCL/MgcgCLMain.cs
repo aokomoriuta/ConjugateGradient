@@ -12,7 +12,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int COUNT = 150000;
+		const int COUNT = 1500000;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -22,7 +22,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最小繰り返し回数
 		/// </summary>
-		const int MIN_ITERATION = 0;
+		const int MIN_ITERATION = 20;
 
 		/// <summary>
 		/// 最大繰り返し回数
@@ -32,7 +32,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 収束誤差
 		/// </summary>
-		const float ALLOWABLE_RESIDUAL = 1e-3f;
+		const float ALLOWABLE_RESIDUAL = 1e-4f;
 
 		/// <summary>
 		/// エントリポイント
@@ -78,7 +78,7 @@ namespace LWisteria.MgcgCL
 				}
 
 				// 生成項を設定
-				float b_i = i * 0.01f;
+				float b_i = (float)Math.Cos(i) * 10;
 				cgCpu.b[i] = b_i;
 				cgCL.b[i] = b_i;
 
@@ -118,9 +118,8 @@ namespace LWisteria.MgcgCL
 			// ストップウォッチを作成
 			var stopwatch = new System.Diagnostics.Stopwatch();
 
-			try
-			{
-
+			//try
+			//{
 				// CPUで方程式を解く
 				stopwatch.Restart();
 				cgCpu.Solve();
@@ -133,24 +132,28 @@ namespace LWisteria.MgcgCL
 				stopwatch.Stop();
 				var clTime = stopwatch.ElapsedMilliseconds;
 
+				// 全要素の
 				for(int i = 0; i < COUNT; i++)
 				{
+					// 誤差を取得
 					float residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
 
+					// 許容誤差以上だったら
 					if(residual > ALLOWABLE_RESIDUAL)
 					{
-						Console.WriteLine("{0,4}: {1:e}", i, residual);
+						// 通知
+						Console.WriteLine("{0,4}: {1:e} ({2:e} vs {3:e})", i, residual, cgCpu.x[i], cgCL.x[i]);
 					}
 				}
 
 				// かかった時間を表示
 				Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
 				Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime / cgCL.Iteration);
-			}
-			catch(Exception ex)
-			{
-				Console.WriteLine("!!!!{0}", ex.Message);
-			}
+			//}
+			//catch(Exception ex)
+			//{
+			//    Console.WriteLine("!!!!{0}", ex.Message);
+			//}
 
 			// 終了
 			Console.WriteLine("終了します");
