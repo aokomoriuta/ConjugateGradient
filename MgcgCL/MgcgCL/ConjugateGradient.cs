@@ -22,7 +22,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 収束判定誤差
 		/// </summary>
-		readonly float allowableResidual;
+		readonly double allowableResidual;
 
 		/// <summary>
 		/// 繰り返し回数
@@ -37,7 +37,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration">最小繰り返し回数</param>
 		/// <param name="_maxIteration">最大繰り返し回数</param>
 		/// <param name="_allowableResidual">収束誤差</param>
-		public ConjugateGradient(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, float _allowableResidual)
+		public ConjugateGradient(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double _allowableResidual)
 			: base(count, maxNonZeroCount)
 		{
 			// 最小・最大繰り返し回数を設定
@@ -53,7 +53,7 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		/// <param name="r">誤差</param>
 		/// <returns>繰り返し回数と収束誤差から判定した結果</returns>
-		protected bool IsConverged(float r)
+		protected bool IsConverged(double r)
 		{
 			Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
 

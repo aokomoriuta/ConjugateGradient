@@ -10,7 +10,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 各要素
 		/// </summary>
-		internal readonly float[] Elements;
+		internal readonly double[] Elements;
 
 		/// <summary>
 		/// その要素の列番号
@@ -35,7 +35,7 @@ namespace LWisteria.MgcgCL
 		public SparseMatrix(int rowCount, int maxNonzeroCountPerRow)
 		{
 			// 要素と列番号配列を初期化
-			this.Elements = new float[rowCount* maxNonzeroCountPerRow];
+			this.Elements = new double[rowCount* maxNonzeroCountPerRow];
 			this.ColumnIndeces = new int[rowCount* maxNonzeroCountPerRow];
 
 			// 非ゼロ要素数を初期化
@@ -68,7 +68,7 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		/// <param name="i">行番号および列番号</param>
 		/// <returns>対角成分</returns>
-		float this[int i]
+		double this[int i]
 		{
 			// 取得
 			get
@@ -93,7 +93,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="i">行番号</param>
 		/// <param name="j">列番号</param>
 		/// <returns>i行目j列目の要素</returns>
-		public float this[int i, int j]
+		public double this[int i, int j]
 		{
 			// 取得
 			get
@@ -199,7 +199,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="answer">演算結果を格納するベクトル</param>
 		/// <param name="vector">右ベクトル</param>
 		/// <param name="isEnabled">その要素が有効かどうかを表す配列</param>
-		internal void Multiply(float[] answer, float[] vector)
+		internal void Multiply(double[] answer, double[] vector)
 		{
 			// 各行について
 			//Parallel.For(0, answer.Length, (i) =>
@@ -231,10 +231,10 @@ namespace LWisteria.MgcgCL
 		/// <param name="residual">収束値</param>
 		/// <returns>固有値の配列</returns>
 		/// <remarks>参考文献：物理のかぎしっぽ http://hooktail.org/computer/index.php?Jacobi%CB%A1 </remarks>
-		public float[] GetEigenValues(int maxIteration, float residual)
+		public double[] GetEigenValues(int maxIteration, double residual)
 		{
 			// 対象の行列を生成
-			float[,] A = new float[this.RowCount, this.RowCount];
+			double[,] A = new double[this.RowCount, this.RowCount];
 
 			// 全行について
 			for(int i = 0; i < this.RowCount; i++)
@@ -279,7 +279,7 @@ namespace LWisteria.MgcgCL
 				int oldQ = q;
 				
 				// 最大値を初期化
-				float maxValue = residual / 10;
+				double maxValue = residual / 10;
 
 				// 全要素について
 				for(int i = 0; i < this.RowCount; i++)
@@ -290,7 +290,7 @@ namespace LWisteria.MgcgCL
 						if(i != j)
 						{
 							// 要素の絶対値を取得
-							float a_ij = Math.Abs(A[i, j]);
+							double a_ij = Math.Abs(A[i, j]);
 
 							// 最大値より大きければ
 							if(a_ij > maxValue)
@@ -318,16 +318,16 @@ namespace LWisteria.MgcgCL
 					//  * γ = |α|/√(α^2 + β^2)
 					//  * cosθ = √((1+γ)/2)
 					//  * sinθ = √((1-γ)/2) sing(αβ)
-					float alpha = (A[p, p] - A[q, q]) / 2;
-					float beta = -A[p, q];
-					float gamma = (float)(Math.Abs(alpha) / Math.Sqrt(alpha * alpha + beta * beta));
-					float cos = (float)Math.Sqrt((1 + gamma) / 2);
-					float sin = (float)Math.Sqrt((1 - gamma) / 2) * Math.Sign(alpha * beta);
+					double alpha = (A[p, p] - A[q, q]) / 2;
+					double beta = -A[p, q];
+					double gamma = (double)(Math.Abs(alpha) / Math.Sqrt(alpha * alpha + beta * beta));
+					double cos = (double)Math.Sqrt((1 + gamma) / 2);
+					double sin = (double)Math.Sqrt((1 - gamma) / 2) * Math.Sign(alpha * beta);
 
 					// 対象成分を取得
-					float a_pp = A[p, p];
-					float a_pq = A[p, q];
-					float a_qq = A[q, q];
+					double a_pp = A[p, p];
+					double a_pq = A[p, q];
+					double a_qq = A[q, q];
 
 					// 全要素について
 					Parallel.For(0, this.RowCount, (i) =>
@@ -335,16 +335,16 @@ namespace LWisteria.MgcgCL
 						// 他の行や列にも回転を実行
 						//  * a_pi = a_pi cosθ - a_qi sinθ
 						//  * a_qi = a_pi sinθ + a_qi cosθ
-						float a_pi = A[p, i];
-						float a_qi = A[q, i];
+						double a_pi = A[p, i];
+						double a_qi = A[q, i];
 						A[p, i] = a_pi * cos - a_qi * sin;
 						A[q, i] = a_pi * sin + a_qi * cos;
 
 						// 対称成分も同様
 						//  * a_ip = a_ip cosθ - a_iq sinθ
 						//  * a_iq = a_ip sinθ + a_iq cosθ
-						float a_ip = A[i, p];
-						float a_iq = A[i, q];
+						double a_ip = A[i, p];
+						double a_iq = A[i, q];
 						A[i, p] = a_ip * cos - a_iq * sin;
 						A[i, q] = a_ip * sin + a_iq * cos;
 					});
@@ -358,7 +358,7 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 固有値配列を生成
-			var eigenValues = new float[this.RowCount];
+			var eigenValues = new double[this.RowCount];
 
 			// 全行の
 			for(int i = 0; i < this.RowCount; i++)

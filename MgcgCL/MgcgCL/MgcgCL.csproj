@@ -45,7 +45,7 @@
     </Compile>
     <Compile Include="SparseMatrix.cs" />
     <Compile Include="ConjugateGradientCpu.cs" />
-    <Compile Include="ConjugateGradientCL.cs" />
+    <Compile Include="ConjugateGradientCLSingle.cs" />
     <None Include="Mgcg.cl" />
   </ItemGroup>
   <ItemGroup>

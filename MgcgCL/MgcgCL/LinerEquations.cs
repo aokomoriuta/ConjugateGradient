@@ -13,12 +13,12 @@
 		/// <summary>
 		/// 未知数ベクトル
 		/// </summary>
-		public float[] x;
+		public double[] x;
 
 		/// <summary>
 		/// 生成項
 		/// </summary>
-		public readonly float[] b;
+		public readonly double[] b;
 
 
 		/// <summary>
@@ -30,8 +30,8 @@
 		{
 			// 係数行列・未知数・生成項を初期化
 			this.A = new SparseMatrix(count, maxNonZeroCount);
-			this.x = new float[count];
-			this.b = new float[count];
+			this.x = new double[count];
+			this.b = new double[count];
 		}
 
 		/// <summary>
