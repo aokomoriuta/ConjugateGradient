@@ -12,7 +12,7 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int COUNT = 128 * 1024;
+		const int COUNT = 21 * 32 * 1024;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -45,14 +45,15 @@ namespace LWisteria.MgcgCL
 
 			// CG法を作成
 			var cgCpu = new ConjugateGradientCpu(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
-			var cgCL = new ConjugateGradientCLSingle(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
+			var cgCLSingle = new ConjugateGradientCLSingle(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
+			var cgCLParallel = new ConjugateGradientCLParallel(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
 
 			// 係数行列の初期化
 			for(int i = 0; i < COUNT; i++)
 			{
 				cgCpu.A[i, i] = 0;
 
-				cgCL.A[i, i] = 0;
+				cgCLSingle.A[i, i] = 0;
 			}
 
 			// 各行で
@@ -69,23 +70,27 @@ namespace LWisteria.MgcgCL
 
 						// 要素を設定
 						cgCpu.A[i, j] = a_ij;
-						cgCL.A[i, j] = a_ij;
+						cgCLSingle.A[i, j] = a_ij;
+						cgCLParallel.A[i, j] = a_ij;
 
 						// 対角成分に追加
 						cgCpu.A[i, i] += a_ij;
-						cgCL.A[i, i] += a_ij;
+						cgCLSingle.A[i, i] += a_ij;
+						cgCLParallel.A[i, i] += a_ij;
 					}
 				}
 
-				// 生成項を設定
+				// 右辺ベクトルを設定
 				double b_i = (double)Math.Cos(i) * 10;
 				cgCpu.b[i] = b_i;
-				cgCL.b[i] = b_i;
+				cgCLSingle.b[i] = b_i;
+				cgCLParallel.b[i] = b_i;
 
 				// 未知数を初期化
-				double x_i = i;
+				double x_i = (double)i / 10;
 				cgCpu.x[i] = x_i;
-				cgCL.x[i] = x_i;
+				cgCLSingle.x[i] = x_i;
+				cgCLParallel.x[i] = x_i;
 			}
 			);
 
@@ -126,29 +131,36 @@ namespace LWisteria.MgcgCL
 				stopwatch.Stop();
 				var cpuTime = stopwatch.ElapsedMilliseconds;
 
-				// OpenCLで方程式を解く
+				// 1GPUで方程式を解く
 				stopwatch.Restart();
-				cgCL.Solve();
+				cgCLSingle.Solve();
 				stopwatch.Stop();
-				var clTime = stopwatch.ElapsedMilliseconds;
+				var clSignleTime = stopwatch.ElapsedMilliseconds;
+
+				// 複数GPUで方程式を解く
+				stopwatch.Restart();
+				cgCLParallel.Solve();
+				stopwatch.Stop();
+				var clParallelTime = stopwatch.ElapsedMilliseconds;
 
 				// 全要素の
 				for(int i = 0; i < COUNT; i++)
 				{
 					// 誤差を取得
-					double residual = Math.Abs(cgCpu.x[i] - cgCL.x[i]);
+					double residual = Math.Abs(cgCpu.x[i] - cgCLSingle.x[i]);
 
 					// 許容誤差以上だったら
 					if(residual > ALLOWABLE_RESIDUAL)
 					{
 						// 通知
-						Console.WriteLine("{0,4}: {1:e} ({2:e} vs {3:e})", i, residual, cgCpu.x[i], cgCL.x[i]);
+						Console.WriteLine("{0,4}: {1:e} ({2:e} vs {3:e})", i, residual, cgCpu.x[i], cgCLSingle.x[i]);
 					}
 				}
 
 				// かかった時間を表示
-				Console.WriteLine("CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
-				Console.WriteLine(" CL: {0} / {1} = {2}", clTime, cgCL.Iteration, clTime / cgCL.Iteration);
+				Console.WriteLine("単一CPU: {0} / {1} = {2}", cpuTime, cgCpu.Iteration, cpuTime / cgCpu.Iteration);
+				Console.WriteLine("単一GPU: {0} / {1} = {2}", clSignleTime, cgCLSingle.Iteration, clSignleTime / cgCLSingle.Iteration);
+				Console.WriteLine("複数GPU: {0} / {1} = {2}", clParallelTime, cgCLParallel.Iteration, clParallelTime / cgCLParallel.Iteration);
 			//}
 			//catch(Exception ex)
 			//{

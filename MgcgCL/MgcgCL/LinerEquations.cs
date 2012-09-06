@@ -16,7 +16,7 @@
 		public double[] x;
 
 		/// <summary>
-		/// 生成項
+		/// 右辺ベクトル
 		/// </summary>
 		public readonly double[] b;
 
@@ -28,7 +28,7 @@
 		/// <param name="maxNonZeroCount">0でない要素の最大数</param>
 		public LinerEquations(int count, int maxNonZeroCount)
 		{
-			// 係数行列・未知数・生成項を初期化
+			// 係数行列・未知数・右辺ベクトルを初期化
 			this.A = new SparseMatrix(count, maxNonZeroCount);
 			this.x = new double[count];
 			this.b = new double[count];

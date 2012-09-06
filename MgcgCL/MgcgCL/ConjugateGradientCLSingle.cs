@@ -1,7 +1,5 @@
-﻿using LWisteria.MgcgCL.LongVector;
+﻿using System;
 using Cloo;
-using System;
-using System.Collections.Generic;
 
 namespace LWisteria.MgcgCL
 {
@@ -69,7 +67,7 @@ namespace LWisteria.MgcgCL
 		ComputeBuffer<int> bufferNonzeroCounts;
 
 		/// <summary>
-		/// 生成項
+		/// 右辺ベクトル
 		/// </summary>
 		ComputeBuffer<double> bufferB;
 
@@ -132,7 +130,7 @@ namespace LWisteria.MgcgCL
 			var platform = ComputePlatform.Platforms[0];
 
 			// コンテキストを作成
-			var context = new ComputeContext(Cloo.ComputeDeviceTypes.Gpu, new ComputeContextPropertyList(platform), null, IntPtr.Zero);
+			var context = new ComputeContext(ComputeDeviceTypes.Gpu, new ComputeContextPropertyList(platform), null, IntPtr.Zero);
 
 			// 利用可能なデバイス群を取得
 			var devices = context.Devices;
