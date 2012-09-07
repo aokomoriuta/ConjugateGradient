@@ -250,11 +250,7 @@ namespace LWisteria.MgcgCL
 			}
 		}
 
-
-		/// <summary>
-		/// OpenCLを使って方程式を解く
-		/// </summary>
-		override public void Solve()
+		public void Initialize()
 		{
 			// 全キューについて
 			Parallel.For(0, queues.Length, (i) =>
@@ -266,15 +262,21 @@ namespace LWisteria.MgcgCL
 				queues[i].WriteToBuffer(this.x, buffersX[i], false, offset[i], 0, countPerDevice[i], null);
 				queues[i].WriteToBuffer(this.b, buffersB[i], false, offset[i], 0, countPerDevice[i], null);
 			});
+		}
 
+		/// <summary>
+		/// OpenCLを使って方程式を解く
+		/// </summary>
+		override public void Solve()
+		{
 			// 初期値を設定
 			/*
 			 * (Ap)_0 = A * x
 			 * r_0 = b - Ap
 			 * p_0 = r_0
 			 */
-			this.Matrix_x_Vector(buffersAp, buffersA, buffersColumnIndeces, buffersNonzeroCounts, buffersX);
-			this.VectorPlusVector(buffersR, buffersB, buffersAp, -1);
+			this.Matrix_x_Vector(buffersX, buffersA, buffersColumnIndeces, buffersNonzeroCounts, buffersX);
+			this.VectorPlusVector(buffersR, buffersB, buffersX, -1);
 			Parallel.For(0, queues.Length, (i) =>
 			{
 				queues[i].CopyBuffer(buffersR[i], buffersP[i], null);
@@ -300,12 +302,6 @@ namespace LWisteria.MgcgCL
 				this.VectorPlusVector(buffersX, buffersX, buffersP, alpha);
 				this.VectorPlusVector(buffersR, buffersR, buffersAp, -alpha);
 
-				var debug = new double[this.Count];
-				Parallel.For(0, queues.Length, (i) =>
-				{
-					queues[i].ReadFromBuffer(buffersR[i], ref debug, true, 0, offset[i], countPerDevice[i], null);
-				});
-
 				// 収束したかどうかを取得
 				converged = this.IsConverged(this.MaxAbsolute(buffersR));
 
@@ -324,11 +320,15 @@ namespace LWisteria.MgcgCL
 				}
 			}
 
-			// 計算結果を読み込み
-			queues[0].ReadFromBuffer(buffersX[0], ref this.x, false, null);
+			// 全キューについて
+			Parallel.For(0, queues.Length, (i) =>
+			{
+				// 計算結果を読み込み
+				queues[i].ReadFromBuffer(buffersX[i], ref this.x, false, 0, offset[i], countPerDevice[i], null);
 
-			// ここまで待機
-			queues[0].Finish();
+				// ここまで待機
+				queues[i].Finish();
+			});
 		}
 
 		/// <summary>
@@ -427,15 +427,23 @@ namespace LWisteria.MgcgCL
 			// 全キューについて
 			System.Threading.Tasks.Parallel.For(0, queues.Length, (i) =>
 			{
-				// 各デバイスに保持されているベクトルデータをホストへ読み込み
-				queues[i].ReadFromBuffer(vector[i], ref allVector, true, 0, offset[i], countPerDevice[i], null);
-			});
+				// ベクトルデータを複製
+				queues[i].CopyBuffer(vector[i], bufferAllVector[i], 0, offset[i], countPerDevice[i], null);
 
-			// 全キューについて
-			System.Threading.Tasks.Parallel.For(0, queues.Length, (i) =>
-			{
-				// 全ベクトルのバッファーに転送
-				queues[i].WriteToBuffer(allVector, bufferAllVector[i], false, null);
+				// 1つ前のキューから
+				if(i > 0)
+				{
+					// 境界データを受け取って自分のデータに格納
+					queues[i - 1].ReadFromBuffer(vector[i - 1], ref allVector, true, countPerDevice[i - 1] - this.A.MaxNonzeroCountPerRow, offset[i] - this.A.MaxNonzeroCountPerRow, this.A.MaxNonzeroCountPerRow, null);
+					queues[i].WriteToBuffer(allVector, bufferAllVector[i], false, offset[i] - this.A.MaxNonzeroCountPerRow, offset[i] - this.A.MaxNonzeroCountPerRow, this.A.MaxNonzeroCountPerRow, null);
+				}
+				// 1つ後ろのキューから
+				if(i < queues.Length - 1)
+				{
+					// 境界データを受け取って自分のデータに格納
+					queues[i + 1].ReadFromBuffer(vector[i + 1], ref allVector, true, 0, offset[i + 1], this.A.MaxNonzeroCountPerRow, null);
+					queues[i].WriteToBuffer(allVector, bufferAllVector[i], false, offset[i + 1], offset[i + 1], this.A.MaxNonzeroCountPerRow, null);
+				}
 
 				// 行列とベクトルの積を実行
 				//  # 解を格納するベクトル

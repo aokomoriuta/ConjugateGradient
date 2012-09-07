@@ -53,7 +53,7 @@ namespace LWisteria.MgcgCL
 			 * p_0 = (LDLr)_0
 			 */
 			this.A.Multiply(this.Ap, this.x);
-			this.r.SetAdded(this.b, this.Ap, -1);
+			this.r.SetAdded(this.b, this.x, -1);
 			this.r.CopyTo(this.p, 0);
 
 			// 収束したかどうか

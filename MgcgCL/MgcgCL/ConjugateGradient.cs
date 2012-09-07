@@ -46,6 +46,9 @@ namespace LWisteria.MgcgCL
 
 			// 収束判定誤差を設定
 			this.allowableResidual = _allowableResidual;
+
+			// 繰り返し回数を初期化
+			this.Iteration = 1;
 		}
 
 		/// <summary>
@@ -67,7 +70,8 @@ namespace LWisteria.MgcgCL
 			else if(this.Iteration > this.maxIteration)
 			{
 				// 例外
-				throw new System.ApplicationException(string.Format("圧力方程式が収束しませんでした。\nr:{0}\ni:{1}", r, this.Iteration));
+				return true;
+				//throw new System.ApplicationException(string.Format("圧力方程式が収束しませんでした。\nr:{0}\ni:{1}", r, this.Iteration));
 			}
 
 			// 誤差が収束判定誤差より小さいかどうかを計算

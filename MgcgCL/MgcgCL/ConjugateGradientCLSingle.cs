@@ -102,11 +102,6 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		double[] answerForReduction;
 
-		/// <summary>
-		/// 行列とベクトルの積の計算に使うバッファー
-		/// </summary>
-		ComputeBuffer<double> bufferForMatrix_x_Vector;
-
 
 		/// <summary>
 		/// 最大値の算出に使うバッファー
@@ -153,9 +148,8 @@ namespace LWisteria.MgcgCL
 
 			// 計算に使うバッファーを作成
 			bufferForDot = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
-			answerForReduction = new double[1];
-			bufferForMatrix_x_Vector = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count * this.A.MaxNonzeroCountPerRow);
 			bufferForMax = new ComputeBuffer<double>(context, ComputeMemoryFlags.ReadWrite, this.Count);
+			answerForReduction = new double[1];
 
 			// プログラムを作成
 			var program = new ComputeProgram(context, Properties.Resources.Mgcg);
@@ -201,7 +195,7 @@ namespace LWisteria.MgcgCL
 			 * p_0 = (LDLr)_0
 			 */
 			this.Matrix_x_Vector(bufferAp, bufferA, bufferColumnIndeces, bufferNonzeroCounts, bufferX);
-			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
+			this.VectorPlusVector(bufferR, bufferB, bufferX, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
 
 			// 収束したかどうか
