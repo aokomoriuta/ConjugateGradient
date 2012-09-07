@@ -5,24 +5,6 @@
 //! REAL is provided by compiler option
 typedef REAL Real;
 
-
-//! set vector's value
-/*!
-	\param vector target vector
-	\param value value to set
-*/
-__kernel void SetAllVector(
-	__global Real* vector,
-	const Real value)
-{
-	// get element index
-	int i = get_global_id(0);
-
-	// set value
-	vector[i] = value;
-	
-}
-
 //! Add each element
 /*!
 	\param result vector which result is stored to

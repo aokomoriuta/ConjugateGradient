@@ -31,11 +31,6 @@ namespace LWisteria.MgcgCL
 
 		#region カーネル
 		/// <summary>
-		/// ベクトルの要素を設定する
-		/// </summary>
-		ComputeKernel[] setAllVector;
-
-		/// <summary>
 		/// ベクトルの各要素を加算する
 		/// </summary>
 		ComputeKernel[] addVectorVector;
@@ -187,7 +182,6 @@ namespace LWisteria.MgcgCL
 			queues = new ComputeCommandQueue[devices.Count];
 
 			// カーネル配列を作成
-			setAllVector = new ComputeKernel[devices.Count];
 			addVectorVector = new ComputeKernel[devices.Count];
 			multiplyVectorVector = new ComputeKernel[devices.Count];
 			reductionSum = new ComputeKernel[devices.Count];
@@ -222,9 +216,7 @@ namespace LWisteria.MgcgCL
 				// キューを作成
 				queues[i] = new ComputeCommandQueue(context, devices[i], ComputeCommandQueueFlags.None);
 
-
 				// カーネルを作成
-				setAllVector[i] = program.CreateKernel("SetAllVector");
 				addVectorVector[i] = program.CreateKernel("AddVectorVector");
 				multiplyVectorVector[i] = program.CreateKernel("MultiplyVectorVector");
 				reductionSum[i] = program.CreateKernel("ReductionSum");

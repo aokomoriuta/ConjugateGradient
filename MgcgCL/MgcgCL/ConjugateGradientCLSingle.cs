@@ -20,11 +20,6 @@ namespace LWisteria.MgcgCL
 
 		#region カーネル
 		/// <summary>
-		/// ベクトルの要素を設定する
-		/// </summary>
-		ComputeKernel setAllVector;
-
-		/// <summary>
 		/// ベクトルの各要素を加算する
 		/// </summary>
 		ComputeKernel addVectorVector;
@@ -171,7 +166,6 @@ namespace LWisteria.MgcgCL
 			}
 
 			// カーネルを作成
-			setAllVector = program.CreateKernel("SetAllVector");
 			addVectorVector = program.CreateKernel("AddVectorVector");
 			multiplyVectorVector = program.CreateKernel("MultiplyVectorVector");
 			reductionSum = program.CreateKernel("ReductionSum");
@@ -245,22 +239,6 @@ namespace LWisteria.MgcgCL
 
 
 		/// <summary>
-		/// ベクトルの値をすべて指定した値にして初期化する
-		/// </summary>
-		/// <param name="vector">初期化するベクトル</param>
-		/// <param name="value">代入値</param>
-		void InitializeVector(ComputeBuffer<double> vector, double value = 0)
-		{
-			// 各要素同士の足し算を実行
-			//  # 初期化先のベクトル
-			//  # 初期値
-			setAllVector.SetMemoryArgument(0, vector);
-			setAllVector.SetValueArgument(1, value);
-			queue.Execute(setAllVector, null, new long[] { this.Count }, null, null);
-		}
-
-
-		/// <summary>
 		/// ベクトル同士の和を計算する
 		/// </summary>
 		/// <param name="answer">解の代入先</param>
@@ -280,7 +258,6 @@ namespace LWisteria.MgcgCL
 			addVectorVector.SetValueArgument(3, C);
 			queue.Execute(addVectorVector, null, new long[] { this.Count }, null, null);
 		}
-
 
 		/// <summary>
 		/// ベクトルの内積を計算する
