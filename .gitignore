@@ -3,6 +3,7 @@ obj/
 Debug/
 Release/
 ipch/
+CodeAnalyst/
 
 *.suo
 *.vcxproj.user
@@ -10,3 +11,5 @@ ipch/
 *.opensdf
 *.sdf
 *.xml
+*.psess
+*.vsp
