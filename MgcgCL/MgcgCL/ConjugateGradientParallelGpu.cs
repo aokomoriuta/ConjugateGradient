@@ -7,7 +7,7 @@ namespace LWisteria.MgcgCL
 	/// <summary>
 	/// 複数GPUで共役勾配法
 	/// </summary>
-	public class ConjugateGradientCLParallel : ConjugateGradient
+	public class ConjugateGradientParallelGpu : ConjugateGradient
 	{
 		/// <summary>
 		/// 内積で使うワークグループ内ワークアイテム数
@@ -133,7 +133,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradientCLParallel(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradientParallelGpu(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
 			// プラットフォームを取得
@@ -298,7 +298,7 @@ namespace LWisteria.MgcgCL
 				this.VectorPlusVector(buffersR, buffersR, buffersAp, -alpha);
 
 				// 収束したかどうかを取得
-				converged = this.IsConverged(this.MaxAbsolute(buffersR));
+				//converged = this.IsConverged(this.MaxAbsolute(buffersR));
 
 				// 収束していなかったら
 				if(!converged)

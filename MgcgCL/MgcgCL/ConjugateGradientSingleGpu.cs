@@ -1,12 +1,12 @@
-﻿using System;
-using Cloo;
-
+﻿using Cloo;
+using System;
+using MathFunctions = System.Math;
 namespace LWisteria.MgcgCL
 {
 	/// <summary>
 	/// 1GPUで共役勾配法
 	/// </summary>
-	public class ConjugateGradientCLSingle : ConjugateGradient
+	public class ConjugateGradientSingleGpu : ConjugateGradient
 	{
 		/// <summary>
 		/// コマンドキュー
@@ -50,7 +50,7 @@ namespace LWisteria.MgcgCL
 		/// 列番号
 		/// </summary>
 		ComputeBuffer<int> bufferColumnIndeces;
-		
+
 		/// <summary>
 		/// 非ゼロ要素数
 		/// </summary>
@@ -117,7 +117,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_minIteration"></param>
 		/// <param name="_maxIteration"></param>
 		/// <param name="_allowableResidual"></param>
-		public ConjugateGradientCLSingle(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
+		public ConjugateGradientSingleGpu(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
 			// プラットフォームを取得
@@ -133,7 +133,7 @@ namespace LWisteria.MgcgCL
 
 			globalWorkSize = new long[] { this.Count };
 			localWorkSize = new long[] { device.MaxWorkItemSizes[0] };
-			
+
 			// キューを作成
 			queue = new ComputeCommandQueue(context, device, ComputeCommandQueueFlags.None);
 
@@ -183,12 +183,12 @@ namespace LWisteria.MgcgCL
 			bufferSizeOfVectorOnMatrixMultiplying = this.A.MaxNonzeroCountPerRow / 2;
 		}
 
-		 /// <summary>
-        /// 初期化処理（データの転送など）
-        /// </summary>
+		/// <summary>
+		/// 初期化処理（データの転送など）
+		/// </summary>
 		public void Initialize()
 		{
-			//int workGroupCount = (int)Math.Ceiling((double)globalWorkSize[0] / localWorkSize[0]);
+			//int workGroupCount = (int)MathFunctions.Ceiling((double)globalWorkSize[0] / localWorkSize[0]);
 
 			//for(int workGroupIndex = 0; workGroupIndex < workGroupCount; workGroupIndex++)
 			//{
@@ -201,13 +201,13 @@ namespace LWisteria.MgcgCL
 			//		{
 			//			int k = this.A.ColumnIndeces[i * this.A.MaxNonzeroCountPerRow + j];
 
-			//			minI = Math.Min(minI, k);
-			//			maxI = Math.Max(maxI, k);
+			//			minI = MathFunctions.Min(minI, k);
+			//			maxI = MathFunctions.Max(maxI, k);
 			//		}
 			//	}
 
-			//	int start  = (int)Math.Max(0         ,  workGroupIndex *      (int)localWorkSize[0] - 0.5 * this.A.MaxNonzeroCountPerRow);
-			//	int finish = (int)Math.Min(this.Count, (workGroupIndex + 1) * (int)localWorkSize[0] + 0.5 * this.A.MaxNonzeroCountPerRow);
+			//	int start  = (int)MathFunctions.Max(0         ,  workGroupIndex *      (int)localWorkSize[0] - 0.5 * this.A.MaxNonzeroCountPerRow);
+			//	int finish = (int)MathFunctions.Min(this.Count, (workGroupIndex + 1) * (int)localWorkSize[0] + 0.5 * this.A.MaxNonzeroCountPerRow);
 			//}
 
 			// 行列、初期未知数、右辺ベクトルデータを転送
@@ -237,7 +237,6 @@ namespace LWisteria.MgcgCL
 			//queue.Finish();
 			//return;
 
-			//*
 			// 初期値を設定
 			/*
 			 * (Ap)_0 = A * x
@@ -248,11 +247,8 @@ namespace LWisteria.MgcgCL
 			this.VectorPlusVector(bufferR, bufferB, bufferAp, -1);
 			queue.CopyBuffer(bufferR, bufferP, null);
 
-			// 収束したかどうか
-			bool converged = false;
-
 			// 収束しない間繰り返す
-			for(this.Iteration = 0; !converged; this.Iteration++)
+			for(this.Iteration = 0; ; this.Iteration++)
 			{
 				// 計算を実行
 				/*
@@ -269,10 +265,16 @@ namespace LWisteria.MgcgCL
 				this.VectorPlusVector(bufferR, bufferR, bufferAp, -alpha);
 
 				// 収束したかどうかを取得
-				converged = this.IsConverged(this.MaxAbsolute(bufferR));
+				this.Residual = this.MaxAbsolute(bufferR);
 
-				// 収束していなかったら
-				if(!converged)
+				// 収束していたら
+				if(this.IsConverged)
+				{
+					// 繰り返し終了
+					break;
+				}
+				// なかったら
+				else
 				{
 					// 残りの計算を実行
 					/*
@@ -291,7 +293,6 @@ namespace LWisteria.MgcgCL
 
 			// ここまで待機
 			queue.Finish();
-			//*/
 		}
 
 		/// <summary>
@@ -349,7 +350,7 @@ namespace LWisteria.MgcgCL
 			while(targetSize > 1)
 			{
 				// ワークアイテム数を計算
-				int globalSize = (int)(Math.Ceiling((double)targetSize / 2 / localWorkSize[0]) * localWorkSize[0]);
+				int globalSize = (int)(MathFunctions.Ceiling((double)targetSize / 2 / localWorkSize[0]) * localWorkSize[0]);
 
 				// 隣との和を計算
 				//  # 和を計算するベクトル
@@ -382,7 +383,7 @@ namespace LWisteria.MgcgCL
 		void Matrix_x_Vector(ComputeBuffer<double> result, ComputeBuffer<double> matrix, ComputeBuffer<int> columnIndeces, ComputeBuffer<int> nonzeroCounts, ComputeBuffer<double> vector)
 		{
 			// グローバルアイテム数を計算
-			long globalSize = (long)Math.Ceiling((double)this.Count / localWorkSize[0]) * localWorkSize[0];
+			long globalSize = (long)MathFunctions.Ceiling((double)this.Count / localWorkSize[0]) * localWorkSize[0];
 
 			// バッファーサイズを設定
 			int bufferSize = this.A.MaxNonzeroCountPerRow;
@@ -418,7 +419,7 @@ namespace LWisteria.MgcgCL
 			while(targetSize > 1)
 			{
 				// ワークアイテム数を計算
-				int globalSize = (int)(Math.Ceiling((double)targetSize / 2 / localWorkSize[0]) * localWorkSize[0]);
+				int globalSize = (int)(MathFunctions.Ceiling((double)targetSize / 2 / localWorkSize[0]) * localWorkSize[0]);
 
 				// 隣との和を計算
 				//  # 和を計算するベクトル

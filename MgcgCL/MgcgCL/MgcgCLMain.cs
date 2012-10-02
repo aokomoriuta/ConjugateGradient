@@ -45,8 +45,8 @@ namespace LWisteria.MgcgCL
 
 			// CG法を作成
 			var cgCpu = new ConjugateGradientCpu(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
-			var cgCLSingle = new ConjugateGradientCLSingle(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
-			var cgCLParallel = new ConjugateGradientCLParallel(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
+			var cgCLSingle = new ConjugateGradientSingleGpu(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
+			var cgCLParallel = new ConjugateGradientParallelGpu(COUNT, MAX_NONZERO_COUNT, MIN_ITERATION, MAX_ITERATION, ALLOWABLE_RESIDUAL);
 
 			// 係数行列の初期化
 			for(int i = 0; i < COUNT; i++)

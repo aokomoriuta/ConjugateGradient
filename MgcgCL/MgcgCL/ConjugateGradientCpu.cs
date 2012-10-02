@@ -1,6 +1,4 @@
 ﻿using LWisteria.MgcgCL.LongVector;
-using Cloo;
-using System;
 
 namespace LWisteria.MgcgCL
 {
@@ -46,16 +44,6 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		override public void Solve()
 		{
-			//for(int i = 0; i < this.MinIteration; i++)
-			//{
-			//	this.A.Multiply(this.Ap, this.x);
-			//	this.A.Multiply(this.x, this.Ap);
-			//	//this.x.SetAdded(this.b, this.x, -1);
-			//	Console.WriteLine(i);
-			//}
-			//return;
-
-			//*
 			// 初期値を設定
 			/*
 			 * (Ap)_0 = A * x
@@ -66,11 +54,8 @@ namespace LWisteria.MgcgCL
 			this.r.SetAdded(this.b, this.Ap, -1);
 			this.r.CopyTo(this.p, 0);
 
-			// 収束したかどうか
-			bool converged = false;
-
 			// 収束しない間繰り返す
-			for(this.Iteration = 0; !converged; this.Iteration++)
+			for(this.Iteration = 0; ; this.Iteration++)
 			{
 				// 計算を実行
 				/*
@@ -86,11 +71,17 @@ namespace LWisteria.MgcgCL
 				this.x.SetAdded(this.x, this.p, alpha);
 				this.r.SetAdded(this.r, this.Ap, -alpha);
 
-				// 収束したかどうかを取得
-				converged = this.IsConverged(r.MaxAbsolute());
+				// 誤差を設定
+				this.Residual = r.MaxAbsolute();
 
-				// 収束していなかったら
-				if(!converged)
+				// 収束していたら
+				if(this.IsConverged)
+				{
+					// 繰り返し終了
+					break;
+				}
+				// なかったら
+				else
 				{
 					// 残りの計算を実行
 					/*
@@ -103,7 +94,6 @@ namespace LWisteria.MgcgCL
 					this.p.SetAdded(this.r, this.p, beta);
 				}
 			}
-			//*/
 		}
 	}
 }
