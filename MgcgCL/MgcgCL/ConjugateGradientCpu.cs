@@ -34,7 +34,7 @@ namespace LWisteria.MgcgCL
 		/// <param name="_allowableResidual"></param>
 		public ConjugateGradientCpu(int count, int maxNonZeroCount, int _minIteration, int _maxIteration, double allowableResidual)
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
-	{
+		{
 			// 残差および探索方向と係数行列と探索方向の積を初期化
 			this.r = new double[count];
 			this.p = new double[count];
@@ -46,6 +46,16 @@ namespace LWisteria.MgcgCL
 		/// </summary>
 		override public void Solve()
 		{
+			//for(int i = 0; i < this.MinIteration; i++)
+			//{
+			//	this.A.Multiply(this.Ap, this.x);
+			//	this.A.Multiply(this.x, this.Ap);
+			//	//this.x.SetAdded(this.b, this.x, -1);
+			//	Console.WriteLine(i);
+			//}
+			//return;
+
+			//*
 			// 初期値を設定
 			/*
 			 * (Ap)_0 = A * x
@@ -53,7 +63,7 @@ namespace LWisteria.MgcgCL
 			 * p_0 = (LDLr)_0
 			 */
 			this.A.Multiply(this.Ap, this.x);
-			this.r.SetAdded(this.b, this.x, -1);
+			this.r.SetAdded(this.b, this.Ap, -1);
 			this.r.CopyTo(this.p, 0);
 
 			// 収束したかどうか
@@ -93,6 +103,7 @@ namespace LWisteria.MgcgCL
 					this.p.SetAdded(this.r, this.p, beta);
 				}
 			}
+			//*/
 		}
 	}
 }

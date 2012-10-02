@@ -12,17 +12,17 @@ namespace LWisteria.MgcgCL
 		/// <summary>
 		/// 最小繰り返し回数
 		/// </summary>
-		readonly int minIteration;
+		public readonly int MinIteration;
 
 		/// <summary>
 		/// 最大繰り返し回数
 		/// </summary>
-		readonly int maxIteration;
+		public readonly int MaxIteration;
 
 		/// <summary>
 		/// 収束判定誤差
 		/// </summary>
-		readonly double allowableResidual;
+		public readonly double AllowableResidual;
 
 		/// <summary>
 		/// 繰り返し回数
@@ -41,11 +41,11 @@ namespace LWisteria.MgcgCL
 			: base(count, maxNonZeroCount)
 		{
 			// 最小・最大繰り返し回数を設定
-			this.minIteration = _minIteration;
-			this.maxIteration = _maxIteration;
+			this.MinIteration = _minIteration;
+			this.MaxIteration = _maxIteration;
 
 			// 収束判定誤差を設定
-			this.allowableResidual = _allowableResidual;
+			this.AllowableResidual = _allowableResidual;
 
 			// 繰り返し回数を初期化
 			this.Iteration = 1;
@@ -61,13 +61,13 @@ namespace LWisteria.MgcgCL
 			Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, r, this.GetType().Name);
 
 			// 最小繰り返し回数未満なら
-			if(this.Iteration < this.minIteration)
+			if(this.Iteration < this.MinIteration)
 			{
 				// 収束していない
 				return false;
 			}
 			// 最大繰り返し回数を超えていたら
-			else if(this.Iteration > this.maxIteration)
+			else if(this.Iteration > this.MaxIteration)
 			{
 				// 例外
 				return true;
@@ -75,7 +75,7 @@ namespace LWisteria.MgcgCL
 			}
 
 			// 誤差が収束判定誤差より小さいかどうかを計算
-			return (r < this.allowableResidual);
+			return (r < this.AllowableResidual);
 		}
 		/// <summary>
 		/// 方程式を解く
