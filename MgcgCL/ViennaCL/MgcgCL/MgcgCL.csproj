@@ -52,9 +52,6 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="MgcgCL.cs" />
     <Compile Include="CompressedMatrix.cs" />
   </ItemGroup>
@@ -63,6 +60,9 @@
       <Project>{aa8da29e-70a3-4b1a-89cc-c7fa77841d33}</Project>
       <Name>Mgcg</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

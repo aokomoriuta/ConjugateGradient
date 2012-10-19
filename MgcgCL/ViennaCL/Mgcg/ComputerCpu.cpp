@@ -13,17 +13,23 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 
 		// ベクトルと行列を生成
 		x = std::shared_ptr<Vector>(new Vector(count));
-		A = std::shared_ptr<SparseMatrix>(new SparseMatrix(count, count));
+		A = std::shared_ptr<SparseMatrix>(new SparseMatrix(count, count, 44));
 		b = std::shared_ptr<Vector>(new Vector(count));
 		r = std::shared_ptr<Vector>(new Vector(count));
 		p = std::shared_ptr<Vector>(new Vector(count));
 		Ap = std::shared_ptr<Vector>(new Vector(count));
 	}
 
-	void ComputerCpuNative::SetMatrix(const int& i, const int& j, const double& value)
+	void ComputerCpuNative::SetMatrix(double elementsPtr[], unsigned int rowOffsetsPtr[], unsigned int columnIndecesPtr[], const int& elementsCount)
 	{
-		// i行j列に設定
-		(*A)(i, j) = value;
+		A->reserve(elementsCount, false);
+
+		// データを複製
+		std::copy(elementsPtr, elementsPtr + elementsCount, A->value_data().begin());
+		std::copy(rowOffsetsPtr, rowOffsetsPtr + count + 1, A->index1_data().begin());
+		std::copy(columnIndecesPtr, columnIndecesPtr + elementsCount, A->index2_data().begin());
+		
+		A->set_filled(count+1, elementsCount);
 	}
 
 	void ComputerCpuNative::SetVector(const double xPtr[], const double bPtr[])
@@ -70,7 +76,7 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 			*r -= alpha * *Ap;
 			double rrNew = inner_prod(*r, *r);
 
-			//std::cout << iteration << ": " << rrNew/rr0 << std::endl;
+			//std::cout << iteration << ": " << sqrt(rrNew/rr0) << std::endl;
 
 			// 収束したかどうかを取得
 			converged = (minIteration < iteration) && (rrNew/rr0  < residual * residual);
@@ -115,26 +121,18 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 		delete(computer);
 	}
 	
-	void ComputerCpu::Write(System::Collections::Generic::List<System::Collections::Generic::Dictionary<unsigned int, double>^>^ A, array<double>^ x, array<double>^ b)
+	void ComputerCpu::Write(array<double>^ elements, array<unsigned int>^ rowOffsets, array<unsigned int>^ columnIndeces, array<double>^ x, array<double>^ b)
 	{
-		// 各行の
-		for(int i = 0; i < A->Count; i++)
-		{
-			// 各列で
-			for each(System::Collections::Generic::KeyValuePair<unsigned int, double> pair in A[i])
-			{
-				// 列番号と値を取得
-				int j = pair.Key;
-				double value  = pair.Value;
-
-				// 行列に設定
-				computer->SetMatrix(i, j, value);
-			}
-		}
+		// 行列を設定
+		pin_ptr<double> elementsPtr = &elements[0];
+		pin_ptr<unsigned int> rowOffsetsPtr = &rowOffsets[0];
+		pin_ptr<unsigned int> columnIndecesPtr = &columnIndeces[0];
+		int elementsCount = elements->Length;
+		computer->SetMatrix(elementsPtr, rowOffsetsPtr, columnIndecesPtr, elementsCount);
 
 		// ベクトルを設定
-		pin_ptr<double> bPtr = &b[0];
 		pin_ptr<double> xPtr = &x[0];
+		pin_ptr<double> bPtr = &b[0];
 		computer->SetVector(xPtr, bPtr);
 	}
 

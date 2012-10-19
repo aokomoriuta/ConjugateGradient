@@ -3,6 +3,7 @@
 #include <memory>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix_sparse.hpp>
+#using<System.dll>
 
 namespace LWisteria{ namespace Mgcg
 {
@@ -45,7 +46,7 @@ namespace LWisteria{ namespace Mgcg
 		* @param j 列番号
 		* @param value 要素値
 		*/
-		void SetMatrix(const int& i, const int& j, const double& value);
+		void SetMatrix(double elementsPtr[], unsigned int rowOffsetsPtr[], unsigned int columnIndecesPtr[], const int& elementsCount);
 
 		/** @brief 右辺ベクトルを設定する
 		* @param vectorPtr ベクトルの先頭ポインタ
@@ -85,8 +86,8 @@ namespace LWisteria{ namespace Mgcg
 		* @param left 足されるベクトルの配列
 		* @param right 足すベクトルの配列
 		*/
-		void Write(System::Collections::Generic::List<System::Collections::Generic::Dictionary<unsigned int, double>^>^ A, array<double>^ x, array<double>^ b);
-		
+		void Write(array<double>^ elements, array<unsigned int>^ rowOffsets, array<unsigned int>^ columnIndeces, array<double>^ x, array<double>^ b);
+
 		//! 演算を実行する
 		void Solve(double residual, int minIteration, int maxIteration);
 

@@ -11,7 +11,7 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 		/// <summary>
 		/// 要素数
 		/// </summary>
-		const int N = 34567*3;
+		const int N = 34567;
 
 		/// <summary>
 		/// バンド幅
@@ -60,7 +60,7 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 				x[i] = 0;
 				b[i] = (double)System.Math.Asin((double)i / N);
 			}
-			Console.WriteLine("N: {0}", N);
+			Console.WriteLine("{0}x{1}", N, BAND_WIDTH);
 
 			/*
 			// 条件表示
@@ -82,6 +82,20 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 			Console.WriteLine("=");
 			*/
 
+			var elementsList = new List<double>();
+			var columnIndecesList = new List<uint>();
+			var rowOffsets = new uint[N + 1];
+			rowOffsets[0] = 0;
+			for(int i = 0; i < N; i++)
+			{
+				columnIndecesList.AddRange(A.Elements[i].Keys);
+				elementsList.AddRange(A.Elements[i].Values);
+
+				rowOffsets[i + 1] = rowOffsets[i] + (uint)A.Elements[i].Count;
+			}
+			var elements = elementsList.ToArray();
+			var columnIndeces = columnIndecesList.ToArray();
+
 			// ストップウォッチ作成
 			var stopwatch = new System.Diagnostics.Stopwatch();
 
@@ -99,7 +113,8 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 				Console.WriteLine("Time = ");
 				// 入力
 				stopwatch.Restart();
-				computer.Write(A.Elements, x, b);
+				computer.Write(elements, rowOffsets, columnIndeces, x, b);
+				//computer.Write(A.Elements, x, b);
 				var inputTime = stopwatch.ElapsedMilliseconds;
 
 				// 演算実行
@@ -142,37 +157,7 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 
 				// 入力
 				stopwatch.Restart();
-
-				/*
-				System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<int, double>> rows = new System.Collections.Generic.KeyValuePair<int, double>[0];
-				A.Elements.ForEach(row => { rows = rows.Concat(row); });
-				var columnIndeces = rows.Select(row => (uint)row.Key).ToArray();
-				var elements = rows.Select(row => row.Value).ToArray();
-				var rowOffsets = new uint[] { 0 }.Concat(A.Elements.Select((row, i) =>
-				{
-					uint offset = 0;
-
-					for(int j = 0; j < i + 1; j++)
-					{
-						offset += (uint)A.Elements[j].Count;
-					}
-
-					return offset;
-				}).ToArray()).ToArray();
-				*/
-				var elements = new List<double>();
-				var columnIndeces = new List<uint>();
-				var rowOffsets = new uint[N + 1];
-				rowOffsets[0] = 0;
-				for(int i = 0; i < N; i++)
-				{
-					columnIndeces.AddRange(A.Elements[i].Keys);
-					elements.AddRange(A.Elements[i].Values);
-
-					rowOffsets[i + 1] = rowOffsets[i] + (uint)A.Elements[i].Count;
-				}
-
-				computer.Write(elements.ToArray(), rowOffsets, columnIndeces.ToArray(), x, b);
+				computer.Write(elements, rowOffsets, columnIndeces, x, b);
 				var inputTime = stopwatch.ElapsedMilliseconds;
 
 				// 演算実行
@@ -191,6 +176,7 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 				// 実行時間表示
 
 				Console.WriteLine("{0, 5} + {1, 5} + {2, 5} = {3, 5} / {4}", inputTime, executionTime, outputTime, inputTime + executionTime + outputTime, computer.Iteration());
+				
 				/*
 				// 結果表示
 				for(int i = 0; i < N; i++)
