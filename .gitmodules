@@ -1,0 +1,3 @@
+[submodule "MgcgCL/Cloo"]
+	path = MgcgCL/Cloo
+	url = git@github.com:aokomoriuta/Cloo.git
