@@ -49,7 +49,7 @@ namespace LWisteria{ namespace Mgcg
 			*Ap = prod(*A, *x);
 			*r = *b - *Ap;
 			double rr = inner_prod(*r, *r);
-			double rr0 = rr;
+			auto rr0 = rr;
 			*p = *r;
 
 			// 収束したかどうか
@@ -67,12 +67,12 @@ namespace LWisteria{ namespace Mgcg
 				* r'r' = r'・r'
 				*/
 				*Ap = prod(*A, *p);
-				double alpha = rr / inner_prod(*p, *Ap);
+				auto alpha = rr / inner_prod(*p, *Ap);
 				*x += alpha * *p;
 				*r -= alpha * *Ap;
 				double rrNew = inner_prod(*r, *r);
 
-				//std::cout << iteration << ": " << sqrt(rrNew/rr0) << std::endl;
+				//std::cout << iteration << ": " << sqrt(rrNew) << std::endl;
 
 				// 収束したかどうかを取得
 				converged = (minIteration < iteration) && (rrNew/rr0  < residual * residual);
@@ -85,7 +85,7 @@ namespace LWisteria{ namespace Mgcg
 						* β= r'r'/rLDLr
 						* p = r' + βp
 						*/
-					double beta = rrNew / rr;
+					auto beta = rrNew / rr;
 					*p = *r + beta * *p;
 
 					rr = rrNew;

@@ -52,8 +52,8 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 		*/
 		*Ap = prod(*A, *x);
 		*r = *b - *Ap;
-		double rr = inner_prod(*r, *r);
-		double rr0 = rr;
+		auto rr = inner_prod(*r, *r);
+		auto rr0 = rr;
 		*p = *r;
 
 		// 収束したかどうか
@@ -71,10 +71,10 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 			* r'r' = r'・r'
 			*/
 			*Ap = prod(*A, *p);
-			double alpha = rr / inner_prod(*p, *Ap);
+			auto alpha = rr / inner_prod(*p, *Ap);
 			*x += alpha * *p;
 			*r -= alpha * *Ap;
-			double rrNew = inner_prod(*r, *r);
+			auto rrNew = inner_prod(*r, *r);
 
 			//std::cout << iteration << ": " << sqrt(rrNew/rr0) << std::endl;
 
@@ -86,13 +86,13 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 			{
 				// 残りの計算を実行
 				/*
-					* β= r'r'/rLDLr
-					* p = r' + βp
-					*/
-				double beta = rrNew / rr;
-				*p = *r + beta * *p;
+				* β= r'r'/rLDLr
+				* p = r' + βp
+				*/
+			auto beta = rrNew / rr;
+			*p = *r + beta * *p;
 
-				rr = rrNew;
+			rr = rrNew;
 			}
 		}
 	}

@@ -7,8 +7,8 @@
     <ProjectGuid>{B29B2EDE-B3F8-4956-8C96-C271EEE05C93}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>LWisteria.StudiesOfOpenCL.SimpleViennaCL</RootNamespace>
-    <AssemblyName>SimpleViennaCL</AssemblyName>
+    <RootNamespace>LWisteria.StudiesOfOpenCL.MgcgCL</RootNamespace>
+    <AssemblyName>MgcgCL</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
