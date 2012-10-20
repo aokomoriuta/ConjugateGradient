@@ -3,7 +3,6 @@
 #include <memory>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix_sparse.hpp>
-#using<System.dll>
 
 namespace LWisteria{ namespace Mgcg
 {

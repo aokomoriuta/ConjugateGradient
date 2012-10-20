@@ -76,7 +76,7 @@ typedef boost::numeric::ublas::compressed_matrix<double> SparseMatrix;
 			*r -= alpha * *Ap;
 			auto rrNew = inner_prod(*r, *r);
 
-			//std::cout << iteration << ": " << sqrt(rrNew/rr0) << std::endl;
+			std::cout << iteration << ": " << sqrt(rrNew/rr0) << std::endl;
 
 			// 収束したかどうかを取得
 			converged = (minIteration < iteration) && (rrNew/rr0  < residual * residual);

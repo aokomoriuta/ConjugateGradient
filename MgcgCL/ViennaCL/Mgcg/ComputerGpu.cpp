@@ -72,7 +72,7 @@ namespace LWisteria{ namespace Mgcg
 				*r -= alpha * *Ap;
 				double rrNew = inner_prod(*r, *r);
 
-				//std::cout << iteration << ": " << sqrt(rrNew) << std::endl;
+				std::cout << iteration << ": " << sqrt(rrNew) << std::endl;
 
 				// 収束したかどうかを取得
 				converged = (minIteration < iteration) && (rrNew/rr0  < residual * residual);

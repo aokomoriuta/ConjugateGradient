@@ -11,7 +11,7 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 		/// <summary>
 		/// 要素数
 		/// </summary>
-		const int N = 34567;
+		const int N = 34567*5;
 
 		/// <summary>
 		/// バンド幅
@@ -21,9 +21,9 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 		/// <summary>
 		/// 繰り返し回数
 		/// </summary>
-		const int ITRATION = 1;
+		const int ITRATION = 2;
 
-		const double RESIDUAL = (double)1e-8;
+		const double RESIDUAL = (double)1e-4;
 
 		const int MIN_ITERATION = 0;
 
@@ -45,16 +45,16 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 			{
 				A[i, i] = i;
 
-				for(int j = System.Math.Max(0, i - BAND_WIDTH / 2); j <= System.Math.Min(N - 1, i + BAND_WIDTH / 2); j++)
-				{
-					if(i != j)
-					{
-						double a_ij = (double)System.Math.Abs(System.Math.Sin(i + j));
-						A[i, j] = a_ij;
+                for (int j = System.Math.Max(0, i - BAND_WIDTH / 2); j <= System.Math.Min(N - 1, i + BAND_WIDTH / 2); j++)
+                {
+                    if (i != j)
+                    {
+                        double a_ij = (double)System.Math.Abs(System.Math.Sin(i + j));
+                        A[i, j] = a_ij;
 
-						A[i, i] += a_ij;
-					}
-				}
+                        A[i, i] += a_ij;
+                    }
+                }
 
 				// それぞれ設定
 				x[i] = 0;
@@ -99,7 +99,8 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 			// ストップウォッチ作成
 			var stopwatch = new System.Diagnostics.Stopwatch();
 
-			Console.WriteLine("CPU => ");
+            Console.WriteLine("CPU => ");
+            for (int iteration = 0; iteration < ITRATION; iteration++)
 			{
 				// 結果を初期化
 				for(int i = 0; i < N; i++)
@@ -119,7 +120,6 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 
 				// 演算実行
 				stopwatch.Restart();
-				for(int i = 0; i < ITRATION; i++)
 				{
 					computer.Solve(RESIDUAL, MIN_ITERATION, MAX_ITERATION);
 				}
@@ -142,7 +142,9 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 				//*/
 			}
 
-			Console.WriteLine("GPU => ");
+
+            Console.WriteLine("GPU => ");
+            for (int iteration = 0; iteration < ITRATION; iteration++)
 			{
 				// 結果を初期化
 				for(int i = 0; i < N; i++)
@@ -162,7 +164,6 @@ namespace LWisteria.StudiesOfOpenCL.SimpleViennaCL
 
 				// 演算実行
 				stopwatch.Restart();
-				for(int i = 0; i < ITRATION; i++)
 				{
 					computer.Solve(RESIDUAL, MIN_ITERATION, MAX_ITERATION);
 				}
