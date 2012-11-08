@@ -1,6 +1,6 @@
-[submodule "MgcgCL/Handmade/Cloo"]
-	path = MgcgCL/Handmade/Cloo
+[submodule "Mgcg/HandmadeCL/Cloo"]
+	path = Mgcg/HandmadeCL/Cloo
 	url = git@github.com:aokomoriuta/Cloo.git
-[submodule "MgcgCL/ViennaCL/ViennaCLFiles"]
-	path = MgcgCL/ViennaCL/ViennaCLFiles
+[submodule "Mgcg/ViennaCL/ViennaCLFiles"]
+	path = Mgcg/ViennaCL/ViennaCLFiles
 	url = git@github.com:aokomoriuta/ViennaCLFiles.git
