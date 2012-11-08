@@ -5,6 +5,59 @@
 
 extern "C"
 {
+	// 行列とベクトルの積
+	__declspec(dllexport) void _stdcall CsrMV(cusparseHandle_t* cusparse, cusparseMatDescr_t* matDescr, const int deviceID, 
+		double* y,
+		const double* elements, const int* rowOffsets, const int* columnIndeces,
+		const double* x,
+		const int elementsCount, const int count,
+		const double alpha, const double beta)
+	{
+		::cudaSetDevice(deviceID);
+		::cusparseDcsrmv_v2(*cusparse, CUSPARSE_OPERATION_NON_TRANSPOSE, count, count, elementsCount, &alpha, *matDescr,
+			elements, rowOffsets, columnIndeces, x, &beta, y);
+	}
+
+	// ベクトル同士の和
+	__declspec(dllexport) void _stdcall Axpy(cublasHandle_t* cublas, const int deviceID, 
+		double* y, const double* x, 
+		const int count, const double alpha)
+	{
+		::cudaSetDevice(deviceID);
+		::cublasDaxpy_v2(*cublas, count, &alpha, x, 1, y, 1);
+	}
+
+	// ベクトルの内積
+	__declspec(dllexport) double _stdcall Dot(cublasHandle_t* cublas, const int deviceID, 
+		double* y, const double* x, 
+		const int count)
+	{
+		::cudaSetDevice(deviceID);
+
+		double result;
+		::cublasDdot_v2(*cublas, count, x, 1, y, 1, &result);
+
+		return result;
+	}
+
+	// ベクトルのスカラー倍
+	__declspec(dllexport) void _stdcall Scal(cublasHandle_t* cublas, const int deviceID, 
+		double* x, double alpha,
+		const int count)
+	{
+		::cudaSetDevice(deviceID);
+		::cublasDscal_v2(*cublas, count, &alpha, x, 1);
+	}
+
+	// ベクトルを複製する
+	__declspec(dllexport) void _stdcall Copy(cublasHandle_t* cublas, const int deviceID, 
+		double* y, const double* x, 
+		const int count)
+	{
+		::cudaSetDevice(deviceID);
+		::cublasDcopy_v2(*cublas, count, x, 1, y, 1);
+	}
+
 	// 方程式を解く
 	__declspec(dllexport) void _stdcall Solve(cublasHandle_t* cublas, cusparseHandle_t* cusparse, cusparseMatDescr_t* matDescr, const int deviceID, 
 		Vector* elementsVector, VectorInt* rowOffsetsVector, VectorInt* columnIndecesVector,
@@ -15,10 +68,6 @@ extern "C"
 		int& iteration, double& residual)
 	{
 		::cudaSetDevice(deviceID);
-		
-		const double plusOne = 1;
-		const double zero = 0;
-		const double minusOne = -1;
 
 		double* elements = thrust::raw_pointer_cast(&(*elementsVector)[0]);
 		int* columnIndeces = thrust::raw_pointer_cast(&(*columnIndecesVector)[0]);
@@ -36,12 +85,11 @@ extern "C"
 			* rr_0 = r_0・r_0
 			* p_0 = r_0
 			*/
-			cusparseDcsrmv_v2(*cusparse, CUSPARSE_OPERATION_NON_TRANSPOSE, count, count, elementsCount, &plusOne, *matDescr,
-				elements, rowOffsets, columnIndeces, x, &zero, Ap);
-			cublasDcopy_v2(*cublas, count, b, 1, r, 1);
-			cublasDaxpy_v2(*cublas, count, &minusOne, Ap, 1, r, 1);
-			cublasDcopy_v2(*cublas, count, r, 1, p, 1);
-			double rr; cublasDdot_v2(*cublas, count, r, 1, r, 1, &rr);
+			CsrMV(cusparse, matDescr, deviceID, Ap, elements, rowOffsets, columnIndeces, x, elementsCount, count, 1, 0);
+			Copy(cublas, deviceID, r, b, count);
+			Axpy(cublas, deviceID, r, Ap, count, -1);
+			Copy(cublas, deviceID, p, r, count);
+			double rr = Dot(cublas, deviceID, r, r, count);
 
 			// 収束したかどうか
 			bool converged = false;
@@ -57,14 +105,11 @@ extern "C"
 				* r' -= αAp
 				* r'r' = r'・r'
 				*/
-				cusparseDcsrmv_v2(*cusparse, CUSPARSE_OPERATION_NON_TRANSPOSE, count, count, elementsCount, &plusOne, *matDescr,
-					elements, rowOffsets, columnIndeces, p, &zero, Ap);
-				double pAp; cublasDdot_v2(*cublas, count, p, 1, Ap, 1, &pAp);
-				double alpha = rr / pAp;
-				double mAlpha = -alpha;
-				cublasDaxpy_v2(*cublas, count, &alpha, p, 1, x, 1);
-				cublasDaxpy_v2(*cublas, count, &mAlpha, Ap, 1, r, 1);
-				double rrNew; cublasDdot_v2(*cublas, count, r, 1, r, 1, &rrNew);
+				CsrMV(cusparse, matDescr, deviceID, Ap, elements, rowOffsets, columnIndeces, p, elementsCount, count, 1, 0);
+				double alpha = rr / Dot(cublas, deviceID, p, Ap, count);
+				Axpy(cublas, deviceID, x, p, count, alpha);
+				Axpy(cublas, deviceID, r, Ap, count, -alpha);
+				double rrNew = Dot(cublas, deviceID, r, r, count);
 				
 				// 収束したかどうかを取得
 				residual = sqrt(rrNew);
@@ -81,9 +126,7 @@ extern "C"
 					* p = r' + βp
 					*/
 					double beta = rrNew / rr;
-					//*p = *r + beta * *p;
-					cublasDscal_v2(*cublas, count, &beta, p, 1);
-					cublasDaxpy_v2(*cublas, count, &plusOne, r, 1, p, 1);
+					Scal(cublas, deviceID, p, beta, count); Axpy(cublas, deviceID, p, r, count, 1);
 
 					rr = rrNew;
 				}

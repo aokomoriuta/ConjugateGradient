@@ -45,6 +45,7 @@
     <Compile Include="VectorDouble.cs" />
     <Compile Include="MgcgGpu.cs" />
     <Compile Include="VectorInt.cs" />
+    <Compile Include="ConjugateGradientGpu.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

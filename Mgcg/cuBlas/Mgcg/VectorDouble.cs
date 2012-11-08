@@ -50,6 +50,14 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyTo_Double")]
 		static extern void CopyTo(IntPtr source, double[] destination, int count, int deviceID);
+
+		/// <summary>
+		/// CUDA用ポインタへ変換する
+		/// </summary>
+		/// <param name="vec"></param>
+		/// <param name="deviceID"></param>
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "ToRawPtr_Double")]
+		static extern IntPtr ToRawPtr(IntPtr vec);
 		#endregion
 
 		/// <summary>
@@ -81,6 +89,15 @@ namespace LWisteria.Mgcg
 		public void CopyTo(ref double[] array, int count)
 		{
 			CopyTo(Ptr, array, count, Device);
+		}
+
+		/// <summary>
+		/// CUDA用ポインタへ変換する
+		/// </summary>
+		/// <returns>CUDAメモリのポインタ</returns>
+		public IntPtr ToRawPtr()
+		{
+			return ToRawPtr(Ptr);
 		}
 
 		/// <summary>

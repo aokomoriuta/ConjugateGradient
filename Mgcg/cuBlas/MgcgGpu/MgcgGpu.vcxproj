@@ -70,6 +70,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>cudart.lib;cublas.lib;cusparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CudaCompile>
+      <FastMath>true</FastMath>
+    </CudaCompile>
+    <CudaCompile>
+      <Optimization>O2</Optimization>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Vector_Double.hpp" />

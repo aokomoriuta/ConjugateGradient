@@ -6,7 +6,7 @@ namespace LWisteria.Mgcg
 	/// <summary>
 	/// 1GPUで共役勾配法
 	/// </summary>
-	public class ConjugateGradientSingleGpu : ConjugateGradient
+	public class ConjugateGradientSingleGpu : ConjugateGradientGpu
 	{
 		/// <summary>
 		/// 使用するデバイスの番号
@@ -70,55 +70,6 @@ namespace LWisteria.Mgcg
 		VectorDouble vectorR;
 		#endregion
 
-		#region バインディング
-		/// <summary>
-		/// cublasを作成する
-		/// </summary>
-		/// <param name="deviceID"></param>
-		/// <returns></returns>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateBlas")]
-		static extern IntPtr CreateBlas(int deviceID);
-
-		/// <summary>
-		/// cublasを廃棄する
-		/// </summary>
-		/// <param name="cublas"></param>
-		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroyBlas")]
-		static extern void DestroyBlas(IntPtr cublas, int deviceID);
-
-		/// <summary>
-		/// cusparseを作成する
-		/// </summary>
-		/// <param name="deviceID"></param>
-		/// <returns></returns>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateSparse")]
-		static extern IntPtr CreateSparse(int deviceID);
-
-		/// <summary>
-		/// cusparseを廃棄する
-		/// </summary>
-		/// <param name="cusparse"></param>
-		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroySparse")]
-		static extern void DestroySparse(IntPtr cusparse, int deviceID);
-
-		/// <summary>
-		/// matDescrを作成する
-		/// </summary>
-		/// <param name="deviceID"></param>
-		/// <returns></returns>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateMatDescr")]
-		static extern IntPtr CreateMatDescr(int deviceID);
-
-		/// <summary>
-		/// matDescrを廃棄する
-		/// </summary>
-		/// <param name="cusparse"></param>
-		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroyMatDescr")]
-		static extern void DestroyMatDescr(IntPtr matDescr, int deviceID);
-
 		/// <summary>
 		/// 方程式を解く
 		/// </summary>
@@ -135,7 +86,6 @@ namespace LWisteria.Mgcg
 			int elementsCount, int count,
 			double allowableResidual, int minIteration, int maxIteration,
 			out int iteration, out double residual);
-		#endregion
 
 		/// <summary>
 		/// 1GPUでの共役勾配法を生成する
@@ -177,10 +127,11 @@ namespace LWisteria.Mgcg
 			DestroyMatDescr(matDescr, DEVICE_ID);
 		}
 
+
 		/// <summary>
 		/// 初期化処理（データの転送など）
 		/// </summary>
-		public void Initialize()
+		public override void Initialize()
 		{
 			// 非ゼロ要素数を取得
 			var nonzeroCount = A.RowOffsets[Count];
@@ -198,7 +149,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 方程式を解く
 		/// </summary>
-		override public void Solve()
+		public override void Solve()
 		{
 			// 非ゼロ要素数を取得
 			var nonzeroCount = A.RowOffsets[Count];
@@ -221,7 +172,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 結果を読み込む
 		/// </summary>
-		public void Read()
+		public override void Read()
 		{
 			vectorX.CopyTo(ref x, Count);
 		}

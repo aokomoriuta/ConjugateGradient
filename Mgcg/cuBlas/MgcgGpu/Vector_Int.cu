@@ -33,4 +33,10 @@ extern "C"
 		::cudaSetDevice(deviceID);
 		delete vec;
 	}
+	
+	// CUDA用ポインタへ変換する
+	__declspec(dllexport) int* _stdcall ToRawPtr_Int(VectorInt* vec)
+	{
+		return thrust::raw_pointer_cast(&(*vec)[0]);
+	}
 }
