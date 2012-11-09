@@ -58,7 +58,7 @@
 			get
 			{
 				// 誤差表示
-				System.Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, this.Residual, this.GetType().Name);
+				//System.Console.WriteLine("{2} {0,3}: {1:E}", this.Iteration, this.Residual, this.GetType().Name);
 
 				// 最小繰り返し回数未満なら
 				if(this.Iteration < this.MinIteration)

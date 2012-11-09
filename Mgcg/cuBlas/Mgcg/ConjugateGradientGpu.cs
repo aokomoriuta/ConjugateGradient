@@ -11,12 +11,19 @@ namespace LWisteria.Mgcg
 	{
 		#region バインディング
 		/// <summary>
+		/// デバイスを設定する
+		/// </summary>
+		/// <param name="deviceID"></param>
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "SetDevice")]
+		static protected extern void SetDevice(int deviceID);
+
+		/// <summary>
 		/// cublasを作成する
 		/// </summary>
 		/// <param name="deviceID"></param>
 		/// <returns></returns>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateBlas")]
-		static protected extern IntPtr CreateBlas(int deviceID);
+		static protected extern IntPtr CreateBlas();
 
 		/// <summary>
 		/// cublasを廃棄する
@@ -24,7 +31,7 @@ namespace LWisteria.Mgcg
 		/// <param name="cublas"></param>
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroyBlas")]
-		static protected extern void DestroyBlas(IntPtr cublas, int deviceID);
+		static protected extern void DestroyBlas(IntPtr cublas);
 
 		/// <summary>
 		/// cusparseを作成する
@@ -32,7 +39,7 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		/// <returns></returns>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateSparse")]
-		static protected extern IntPtr CreateSparse(int deviceID);
+		static protected extern IntPtr CreateSparse();
 
 		/// <summary>
 		/// cusparseを廃棄する
@@ -40,7 +47,7 @@ namespace LWisteria.Mgcg
 		/// <param name="cusparse"></param>
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroySparse")]
-		static protected extern void DestroySparse(IntPtr cusparse, int deviceID);
+		static protected extern void DestroySparse(IntPtr cusparse);
 
 		/// <summary>
 		/// matDescrを作成する
@@ -48,7 +55,7 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		/// <returns></returns>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CreateMatDescr")]
-		static protected extern IntPtr CreateMatDescr(int deviceID);
+		static protected extern IntPtr CreateMatDescr();
 
 		/// <summary>
 		/// matDescrを廃棄する
@@ -56,7 +63,7 @@ namespace LWisteria.Mgcg
 		/// <param name="cusparse"></param>
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "DestroyMatDescr")]
-		static protected extern void DestroyMatDescr(IntPtr matDescr, int deviceID);
+		static protected extern void DestroyMatDescr(IntPtr matDescr);
 		#endregion
 
 		/// <summary>

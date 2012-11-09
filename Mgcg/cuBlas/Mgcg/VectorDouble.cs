@@ -5,17 +5,12 @@ namespace LWisteria.Mgcg
 	/// <summary>
 	/// double型のベクトル
 	/// </summary>
-	public class VectorDouble
+	public class VectorDouble : IDisposable
 	{
 		/// <summary>
 		/// ベクトル本体のポインタ
 		/// </summary>
 		public readonly IntPtr Ptr;
-
-		/// <summary>
-		/// 使用するデバイス
-		/// </summary>
-		public readonly int Device;
 
 		#region バインディング
 		/// <summary>
@@ -25,7 +20,7 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		/// <returns></returns>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint="Create_Double")]
-		static extern IntPtr Create(int size, int deviceID);
+		static extern IntPtr Create(int size);
 
 		/// <summary>
 		/// ベクトルを廃棄する
@@ -33,23 +28,25 @@ namespace LWisteria.Mgcg
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Delete_Double")]
-		static extern void Delete(IntPtr vec, int deviceID);
+		static extern void Delete(IntPtr vec);
 
 		/// <summary>
 		/// 配列からデータを複製する
 		/// </summary>
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyFrom_Double")]
-		static extern void CopyFrom(IntPtr destination, double[] source, int count, int deviceID);
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyFromArray_Double")]
+		static extern void CopyFrom(IntPtr destination, double[] source,
+			int count, int sourceOffset, int destinationOffset);
 
 		/// <summary>
 		/// 配列へデータを複製する
 		/// </summary>
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyTo_Double")]
-		static extern void CopyTo(IntPtr source, double[] destination, int count, int deviceID);
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyToArray_Double")]
+		static extern void CopyTo(IntPtr source, double[] destination,
+			int count, int sourceOffset, int destinationOffset);
 
 		/// <summary>
 		/// CUDA用ポインタへ変換する
@@ -58,6 +55,13 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "ToRawPtr_Double")]
 		static extern IntPtr ToRawPtr(IntPtr vec);
+
+		/// <summary>
+		/// デバイスへデータを転送する
+		/// </summary>
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyFromVector_Double")]
+		public static extern IntPtr CopyFrom(IntPtr source, IntPtr destination, 
+			int count, int sourceOffset, int destinationOffset);
 		#endregion
 
 		/// <summary>
@@ -65,10 +69,17 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="size"></param>
 		/// <param name="deviceID"></param>
-		public VectorDouble(int size, int deviceID = 0)
+		public VectorDouble(int size)
 		{
-			Device = deviceID;
-			Ptr = Create(size, deviceID);
+			Ptr = Create(size);
+		}
+
+		/// <summary>
+		/// 廃棄する
+		/// </summary>
+		public void Dispose()
+		{
+			Delete(Ptr);
 		}
 
 		/// <summary>
@@ -76,9 +87,9 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="array">複製元</param>
 		/// <param name="count">複製する要素数</param>
-		public void CopyFrom(double[] array, int count)
+		public void CopyFrom(double[] array, int count, int arrayOffset = 0, int vectorOffset = 0)
 		{
-			CopyFrom(Ptr, array, count, Device);
+			CopyFrom(Ptr, array, count, arrayOffset, vectorOffset);
 		}
 
 		/// <summary>
@@ -86,9 +97,9 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="array">複製先</param>
 		/// <param name="count">複製する要素数</param>
-		public void CopyTo(ref double[] array, int count)
+		public void CopyTo(ref double[] array, int count, int arrayOffset = 0, int vectorOffset = 0)
 		{
-			CopyTo(Ptr, array, count, Device);
+			CopyTo(Ptr, array, count, vectorOffset, arrayOffset);
 		}
 
 		/// <summary>
@@ -98,14 +109,6 @@ namespace LWisteria.Mgcg
 		public IntPtr ToRawPtr()
 		{
 			return ToRawPtr(Ptr);
-		}
-
-		/// <summary>
-		/// 廃棄する
-		/// </summary>
-		~VectorDouble()
-		{
-			Delete(Ptr, Device);
 		}
 	}
 }

@@ -12,7 +12,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 未知数の数
 		/// </summary>
-		const int COUNT = 34567 * 4;
+		const int COUNT = 34567 * 6;
 
 		/// <summary>
 		/// 非ゼロ要素の最大数
@@ -22,7 +22,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 最小繰り返し回数
 		/// </summary>
-		const int MIN_ITERATION = 0;
+		const int MIN_ITERATION = 200;
 
 		/// <summary>
 		/// 最大繰り返し回数
@@ -32,7 +32,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 収束誤差
 		/// </summary>
-		const double ALLOWABLE_RESIDUAL = 1e-4f;
+		const double ALLOWABLE_RESIDUAL = 1e-8;
 
 		/// <summary>
 		/// エントリポイント
@@ -89,7 +89,6 @@ namespace LWisteria.Mgcg
 
 			// 各行で
 			Parallel.For(0, COUNT, (i) =>
-			//for(int i = 0; i < COUNT - 1; i++)
 			{
 				// 右辺ベクトルを設定
 				double b_i = (double)Math.Cos(i) * 10;
@@ -102,8 +101,7 @@ namespace LWisteria.Mgcg
 				cgCpu.x[i] = x_i;
 				cgGpuSingle.x[i] = x_i;
 				cgGpuParallel.x[i] = x_i;
-			}
-			);
+			});
 
 			// 開始を通知
 			Console.WriteLine("start");

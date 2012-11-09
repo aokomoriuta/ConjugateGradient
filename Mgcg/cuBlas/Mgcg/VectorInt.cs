@@ -5,17 +5,12 @@ namespace LWisteria.Mgcg
 	/// <summary>
 	/// int型のベクトル
 	/// </summary>
-	public class VectorInt
+	public class VectorInt : IDisposable
 	{
 		/// <summary>
 		/// ベクトル本体のポインタ
 		/// </summary>
 		public readonly IntPtr Ptr;
-
-		/// <summary>
-		/// 使用するデバイス
-		/// </summary>
-		public readonly int Device;
 
 		#region バインディング
 		/// <summary>
@@ -25,7 +20,7 @@ namespace LWisteria.Mgcg
 		/// <param name="deviceID"></param>
 		/// <returns></returns>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint="Create_Int")]
-		static extern IntPtr Create(int size, int deviceID);
+		static extern IntPtr Create(int size);
 
 		/// <summary>
 		/// ベクトルを廃棄する
@@ -33,23 +28,25 @@ namespace LWisteria.Mgcg
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Delete_Int")]
-		static extern void Delete(IntPtr vec, int deviceID);
+		static extern void Delete(IntPtr vec);
 
 		/// <summary>
 		/// 配列からデータを複製する
 		/// </summary>
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyFrom_Int")]
-		static extern void CopyFrom(IntPtr destination, int[] source, int count, int deviceID);
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyFromArray_Int")]
+		static extern void CopyFrom(IntPtr destination, int[] source,
+		int count, int sourceOffset, int destinationOffset);
 
 		/// <summary>
 		/// 配列へデータを複製する
 		/// </summary>
 		/// <param name="vec"></param>
 		/// <param name="deviceID"></param>
-		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyTo_Int")]
-		static extern void CopyTo(IntPtr source, int[] destination, int count, int deviceID);
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "CopyToArray_Int")]
+		static extern void CopyTo(IntPtr source, int[] destination,
+		int count, int sourceOffset, int destinationOffset);
 
 		/// <summary>
 		/// CUDA用ポインタへ変換する
@@ -65,18 +62,17 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="size"></param>
 		/// <param name="deviceID"></param>
-		public VectorInt(int size, int deviceID = 0)
+		public VectorInt(int size)
 		{
-			Device = deviceID;
-			Ptr = Create(size, deviceID);
+			Ptr = Create(size);
 		}
 
 		/// <summary>
 		/// 廃棄する
 		/// </summary>
-		~VectorInt()
+		public void Dispose()
 		{
-			Delete(Ptr, Device);
+			Delete(Ptr);
 		}
 
 		/// <summary>
@@ -84,9 +80,9 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="array">複製元</param>
 		/// <param name="count">複製する要素数</param>
-		public void CopyFrom(int[] array, int count)
+		public void CopyFrom(int[] array, int count, int arrayOffset = 0, int vectorOffset = 0)
 		{
-			CopyFrom(Ptr, array, count, Device);
+			CopyFrom(Ptr, array, count, arrayOffset, vectorOffset);
 		}
 
 		/// <summary>
@@ -94,9 +90,9 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		/// <param name="array">複製先</param>
 		/// <param name="count">複製する要素数</param>
-		public void CopyTo(ref int[] array, int count)
+		public void CopyTo(ref int[] array, int count, int arrayOffset = 0, int vectorOffset = 0)
 		{
-			CopyTo(Ptr, array, count, Device);
+			CopyTo(Ptr, array, count, vectorOffset, arrayOffset);
 		}
 
 		/// <summary>

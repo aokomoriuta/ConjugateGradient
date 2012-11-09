@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace LWisteria.Mgcg
 {
@@ -10,11 +11,14 @@ namespace LWisteria.Mgcg
 	public class ConjugateGradientParallelGpu : ConjugateGradientGpu
 	{
 		/// <summary>
-		/// 使用するデバイスの番号
+		/// デバイス数
 		/// </summary>
-		const int DEVICE_ID = 1;
-
 		readonly int deviceCount;
+
+		/// <summary>
+		/// デバイスが処理する要素の先頭位置
+		/// </summary>
+		readonly int[] offsetsForDevice;
 
 		/// <summary>
 		/// cublasのハンドル
@@ -35,7 +39,7 @@ namespace LWisteria.Mgcg
 		/// <summary>
 		/// 係数行列
 		/// </summary>
-		VectorDouble[] vectorA;
+		VectorDouble[] vectorElements;
 
 		/// <summary>
 		/// 列番号
@@ -71,6 +75,26 @@ namespace LWisteria.Mgcg
 		/// 残差
 		/// </summary>
 		VectorDouble[] vectorR;
+
+		/// <summary>
+		/// ホスト側の一時変数
+		/// </summary>
+		double[] bufferHost;
+
+		/// <summary>
+		/// 各デバイスでの内積の結果
+		/// </summary>
+		double[] resultsDot;
+
+		/// <summary>
+		/// 各デバイスが計算する範囲の列の最小値
+		/// </summary>
+		int[] minJ;
+
+		/// <summary>
+		/// 各デバイスが計算する範囲の列の最大値
+		/// </summary>
+		int[] maxJ;
 		#endregion
 
 		#region バインディング
@@ -118,7 +142,7 @@ namespace LWisteria.Mgcg
 			IntPtr y,
 			IntPtr elements, IntPtr rowOffsets, IntPtr columnIndeces,
 			IntPtr x,
-			int elementsCount, int count,
+			int elementsCount, int rowCount, int columnCount,
 			double alpha, double beta);
 
 		/// <summary>
@@ -173,7 +197,60 @@ namespace LWisteria.Mgcg
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Copy")]
 		static extern void Copy(IntPtr cublas, int deviceID,
 			IntPtr y, IntPtr x,
-			int count);
+			int count, int yOffset, int xOffset);
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Initialize")]
+		static extern void Initialize(
+			double[] elements, int[] rowOffsets, int[] columnIndeces,
+			double[] x, double[] b,
+			IntPtr elementsVector, IntPtr rowOffsetsVector, IntPtr columnIndecesVector,
+			IntPtr xVector, IntPtr bVector,
+			IntPtr pVector,
+			out int minJ, out int maxJ,
+			int count,
+			int countForDevice, int offsetForDevice, int elementCountForDevice, int elementOffsetForDevice);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "P2Host")]
+		static extern void P2Host(IntPtr pVector, double[] p,
+			int thisCount, int thisOffset,
+			int lastCount, int nextCount);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "P2Device")]
+		static extern void P2Device(IntPtr pVector, double[] p,
+			int thisCount, int thisOffset,
+			int lastCount, int nextCount);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Solve0")]
+		static extern double Solve0(IntPtr cublas, IntPtr cusparse, IntPtr matDescr,
+			IntPtr elementsVector, IntPtr rowOffsetsVector, IntPtr columnIndecesVector,
+			IntPtr xVector, IntPtr bVector,
+			IntPtr ApVector, IntPtr pVector, IntPtr rVector,
+			int count,
+			int countForDevice, int offsetForDevice, int elementCountForDevice);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Solve1")]
+		static extern double Solve1(IntPtr cublas, IntPtr cusparse, IntPtr matDescr,
+			IntPtr elementsVector, IntPtr rowOffsetsVector, IntPtr columnIndecesVector,
+			IntPtr ApVector, IntPtr pVector,
+			int count,
+			int countForDevice, int offsetForDevice, int elementCountForDevice);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Solve2")]
+		static extern double Solve2(IntPtr cublas, double alpha,
+			IntPtr xVector,
+			IntPtr ApVector, IntPtr pVector, IntPtr rVector,
+			int countForDevice, int offsetForDevice);
+
+
+		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Solve3")]
+		static extern void Solve3(IntPtr cublas, double beta,
+			IntPtr pVector, IntPtr rVector,
+			int countForDevice, int offsetForDevice);
 		#endregion
 
 		/// <summary>
@@ -190,11 +267,27 @@ namespace LWisteria.Mgcg
 			// デバイス数を取得
 			deviceCount = GetDeviceCount();
 
+			// デバイスが計算する要素の先頭位置を生成
+			offsetsForDevice = new int[deviceCount + 1];
+			offsetsForDevice[0] = 0;
+			for(int i = 1; i < deviceCount; i++)
+			{
+				offsetsForDevice[i] = offsetsForDevice[i - 1] + (int)Math.Floor((double)Count / deviceCount);
+			}
+			offsetsForDevice[deviceCount] = Count;
+
+			// 内積の結果を初期化
+			resultsDot = new double[deviceCount];
+
+			bufferHost = new double[Count];
+			minJ = new int[deviceCount];
+			maxJ = new int[deviceCount];
+
 			// 配列を初期化
 			cublas = new IntPtr[deviceCount];
 			cusparse = new IntPtr[deviceCount];
 			matDescr = new IntPtr[deviceCount];
-			vectorA = new VectorDouble[deviceCount];
+			vectorElements = new VectorDouble[deviceCount];
 			vectorColumnIndeces = new VectorInt[deviceCount];
 			vectorRowOffsets = new VectorInt[deviceCount];
 			vectorX = new VectorDouble[deviceCount];
@@ -202,26 +295,31 @@ namespace LWisteria.Mgcg
 			vectorAp = new VectorDouble[deviceCount];
 			vectorP = new VectorDouble[deviceCount];
 			vectorR = new VectorDouble[deviceCount];
+			
 
 			// 全デバイスで
 			Parallel.For(0, deviceCount, deviceID =>
 			{
+				SetDevice(deviceID);
+
+				var countForDevice = CountForDevice(deviceID);
+
 				// cudaの使用準備
-				cublas[deviceID] = CreateBlas(deviceID);
-				cusparse[deviceID] = CreateSparse(deviceID);
-				matDescr[deviceID] = CreateMatDescr(deviceID);
+				cublas[deviceID] = CreateBlas();
+				cusparse[deviceID] = CreateSparse();
+				matDescr[deviceID] = CreateMatDescr();
 
 				// 行列を初期化
-				vectorA[deviceID] = new VectorDouble(count * maxNonZeroCount, deviceID);
-				vectorColumnIndeces[deviceID] = new VectorInt(count * maxNonZeroCount, deviceID);
-				vectorRowOffsets[deviceID] = new VectorInt(count + 1, deviceID);
+				vectorElements[deviceID] = new VectorDouble(countForDevice * maxNonZeroCount);
+				vectorColumnIndeces[deviceID] = new VectorInt(countForDevice * maxNonZeroCount);
+				vectorRowOffsets[deviceID] = new VectorInt(countForDevice + 1);
 
 				// ベクトルを初期化
-				vectorX[deviceID] = new VectorDouble(count, deviceID);
-				vectorB[deviceID] = new VectorDouble(count, deviceID);
-				vectorAp[deviceID] = new VectorDouble(count, deviceID);
-				vectorP[deviceID] = new VectorDouble(count, deviceID);
-				vectorR[deviceID] = new VectorDouble(count, deviceID);
+				vectorX[deviceID] = new VectorDouble(countForDevice);
+				vectorB[deviceID] = new VectorDouble(countForDevice);
+				vectorAp[deviceID] = new VectorDouble(countForDevice);
+				vectorP[deviceID] = new VectorDouble(count);
+				vectorR[deviceID] = new VectorDouble(countForDevice);
 			});
 		}
 
@@ -233,10 +331,24 @@ namespace LWisteria.Mgcg
 			// 全デバイスで
 			Parallel.For(0, deviceCount, deviceID =>
 			{
+				SetDevice(deviceID);
+
+				// 行列を廃棄
+				vectorElements[deviceID].Dispose();
+				vectorColumnIndeces[deviceID].Dispose();
+				vectorRowOffsets[deviceID].Dispose();
+
+				// ベクトルを廃棄
+				vectorX[deviceID].Dispose();
+				vectorB[deviceID].Dispose();
+				vectorAp[deviceID].Dispose();
+				vectorP[deviceID].Dispose();
+				vectorR[deviceID].Dispose();
+
 				// cublasとcusparseを廃棄
-				DestroyBlas(cublas[deviceID], deviceID);
-				DestroySparse(cusparse[deviceID], deviceID);
-				DestroyMatDescr(matDescr[deviceID], deviceID);
+				DestroyBlas(cublas[deviceID]);
+				DestroySparse(cusparse[deviceID]);
+				DestroyMatDescr(matDescr[deviceID]);
 			});
 		}
 
@@ -245,18 +357,64 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		public override void Initialize()
 		{
-			// 非ゼロ要素数を取得
-			var nonzeroCount = A.RowOffsets[Count];
+			// 全デバイスで初期化
 			Parallel.For(0, deviceCount, deviceID =>
 			{
-				// 行列を転送
-				vectorA[deviceID].CopyFrom(A.Elements, nonzeroCount);
-				vectorColumnIndeces[deviceID].CopyFrom(A.ColumnIndeces, nonzeroCount);
-				vectorRowOffsets[deviceID].CopyFrom(A.RowOffsets, Count + 1);
+				SetDevice(deviceID);
+				var countForDevice = CountForDevice(deviceID);
+				var offsetForDevice = offsetsForDevice[deviceID];
+				var elementCountForDevice = A.RowOffsets[offsetsForDevice[deviceID + 1]] - A.RowOffsets[offsetForDevice];
+				var elementOffsetForDevice = A.RowOffsets[offsetForDevice];
 
-				// ベクトルを転送
-				vectorB[deviceID].CopyFrom(b, Count);
-				vectorX[deviceID].CopyFrom(x, Count);
+				Initialize(
+					A.Elements, A.RowOffsets, A.ColumnIndeces,
+					x, b,
+					vectorElements[deviceID].Ptr, vectorRowOffsets[deviceID].Ptr, vectorColumnIndeces[deviceID].Ptr,
+					vectorX[deviceID].Ptr, vectorB[deviceID].Ptr,
+					vectorP[deviceID].Ptr,
+					out minJ[deviceID], out maxJ[deviceID],
+					Count,
+					countForDevice, offsetForDevice, elementCountForDevice, elementOffsetForDevice);
+			});
+		}
+
+		/// <summary>
+		/// 探索方向ベクトルを同期する
+		/// </summary>
+		void SyncP()
+		{
+			// 全デバイスで探索方向ベクトルの必要部分をホストに転送
+			Parallel.For(0, deviceCount, deviceID =>
+			{
+				SetDevice(deviceID);
+
+				var columnIndeces = vectorColumnIndeces[deviceID].Ptr;
+				var b = vectorB[deviceID].Ptr;
+				var p = vectorP[deviceID].Ptr;
+
+				var countForDevice = CountForDevice(deviceID);
+				var offsetForDevice = offsetsForDevice[deviceID];
+				var lastCount = (deviceID > 0) ? offsetForDevice - minJ[deviceID] : 0;
+				var nextCount = (deviceID < deviceCount - 1) ? maxJ[deviceID] - countForDevice - offsetForDevice + 1 : 0;
+
+				P2Host(p, bufferHost, countForDevice, offsetForDevice, lastCount, nextCount);
+			});
+
+			// 全デバイスで探索方向ベクトルの必要部分をホストから転送
+			Parallel.For(0, deviceCount, deviceID =>
+			{
+				SetDevice(deviceID);
+
+				var columnIndeces = vectorColumnIndeces[deviceID].Ptr;
+				var b = vectorB[deviceID].Ptr;
+				var p = vectorP[deviceID].Ptr;
+
+				var countForDevice = CountForDevice(deviceID);
+				var offsetForDevice = offsetsForDevice[deviceID];
+				var lastCount = (deviceID > 0) ? offsetForDevice - minJ[deviceID] : 0;
+				var nextCount = (deviceID < deviceCount - 1) ? maxJ[deviceID] - countForDevice - offsetForDevice + 1 : 0;
+
+				P2Device(p, bufferHost, countForDevice, offsetForDevice, lastCount, nextCount);
 			});
 		}
 
@@ -265,75 +423,143 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		public override void Solve()
 		{
-			// 非ゼロ要素数を取得
-			var elementsCount = A.RowOffsets[Count];
+			// 探索方向ベクトルを同期
+			SyncP();
 
-			// 生ポインタに変換
-			var elements = vectorA[DEVICE_ID].ToRawPtr();
-			var columnIndeces = vectorColumnIndeces[DEVICE_ID].ToRawPtr();
-			var rowOffsets = vectorRowOffsets[DEVICE_ID].ToRawPtr();
-			var x = vectorX[DEVICE_ID].ToRawPtr();
-			var b = vectorB[DEVICE_ID].ToRawPtr();
-			var Ap = vectorAp[DEVICE_ID].ToRawPtr();
-			var p = vectorP[DEVICE_ID].ToRawPtr();
-			var r = vectorR[DEVICE_ID].ToRawPtr();
-
-			var deviceID = DEVICE_ID;
-			var count = Count;
-
-			// 方程式を解く
+			// 全デバイスで初期値を設定
+			/*
+			* (Ap)_0 = A * x
+			* r_0 = b - Ap
+			* p_0 = r_0
+			* rr_0 = r_0・r_0
+			*/
+			Parallel.For(0, deviceCount, deviceID =>
 			{
-				// 初期値を設定
+				SetDevice(deviceID);
+
+				var blas = cublas[deviceID];
+				var sparse = cusparse[deviceID];
+				var descr = matDescr[deviceID];
+				var elements = vectorElements[deviceID].Ptr;
+				var columnIndeces = vectorColumnIndeces[deviceID].Ptr;
+				var rowOffsets = vectorRowOffsets[deviceID].Ptr;
+				var x = vectorX[deviceID].Ptr;
+				var b = vectorB[deviceID].Ptr;
+				var Ap = vectorAp[deviceID].Ptr;
+				var p = vectorP[deviceID].Ptr;
+				var r = vectorR[deviceID].Ptr;
+
+				var countForDevice = CountForDevice(deviceID);
+				var offsetForDevice = offsetsForDevice[deviceID];
+				var elementCountForDevice = A.RowOffsets[offsetsForDevice[deviceID + 1]] - A.RowOffsets[offsetsForDevice[deviceID]];
+
+				resultsDot[deviceID] = Solve0(blas, sparse, descr,
+					elements, rowOffsets, columnIndeces,
+					x, b,
+					Ap, p, r,
+					Count,
+					countForDevice, offsetForDevice, elementCountForDevice);
+			});
+			double rr = resultsDot.Sum();
+
+			// 収束しない間繰り返す
+			for(this.Iteration = 0; ; this.Iteration++)
+			{
+				// 探索方向ベクトルを同期
+				SyncP();
+
+				// 全デバイスでαを計算
 				/*
-				* (Ap)_0 = A * x
-				* r_0 = b - Ap
-				* rr_0 = r_0・r_0
-				* p_0 = r_0
+				* Ap = A * p
+				* α = rr/(p・Ap)
 				*/
-				CsrMV(cusparse[DEVICE_ID], matDescr[DEVICE_ID], deviceID, Ap, elements, rowOffsets, columnIndeces, x, elementsCount, count, 1, 0);
-				Copy(cublas[DEVICE_ID], deviceID, r, b, count);
-				Axpy(cublas[DEVICE_ID], deviceID, r, Ap, count, -1);
-				Copy(cublas[DEVICE_ID], deviceID, p, r, count);
-				double rr = Dot(cublas[DEVICE_ID], deviceID, r, r, count);
-				
-				// 収束しない間繰り返す
-				for(Iteration = 0; ; Iteration++)
+				Parallel.For(0, deviceCount, deviceID =>
 				{
-					// 計算を実行
+					SetDevice(deviceID);
+
+					var blas = cublas[deviceID];
+					var sparse = cusparse[deviceID];
+					var descr = matDescr[deviceID];
+					var elements = vectorElements[deviceID].Ptr;
+					var columnIndeces = vectorColumnIndeces[deviceID].Ptr;
+					var rowOffsets = vectorRowOffsets[deviceID].Ptr;
+					var Ap = vectorAp[deviceID].Ptr;
+					var p = vectorP[deviceID].Ptr;
+
+					var countForDevice = CountForDevice(deviceID);
+					var offsetForDevice = offsetsForDevice[deviceID];
+					var elementCountForDevice = A.RowOffsets[offsetsForDevice[deviceID + 1]] - A.RowOffsets[offsetsForDevice[deviceID]];
+
+					resultsDot[deviceID] = Solve1(blas, sparse, descr,
+						elements, rowOffsets, columnIndeces,
+						Ap, p,
+						Count,
+						countForDevice, offsetForDevice, elementCountForDevice);
+				});
+				double alpha = rr / resultsDot.Sum();
+
+				// 全デバイスでこのステップの残差を計算
+				/*
+				 * x' += αp
+				 * r' -= αAp
+				 * r'r' = r'・r'
+				 */
+				Parallel.For(0, deviceCount, deviceID =>
+				{
+					SetDevice(deviceID);
+
+					var blas = cublas[deviceID];
+					var x = vectorX[deviceID].Ptr;
+					var Ap = vectorAp[deviceID].Ptr;
+					var p = vectorP[deviceID].Ptr;
+					var r = vectorR[deviceID].Ptr;
+
+					var countForDevice = CountForDevice(deviceID);
+					var offsetForDevice = offsetsForDevice[deviceID];
+
+					resultsDot[deviceID] = Solve2(blas, alpha,
+						x,
+						Ap, p, r,
+						countForDevice, offsetForDevice);
+				});
+				double rrNew = resultsDot.Sum();
+
+				// 誤差を設定
+				this.Residual = System.Math.Sqrt(rrNew);
+
+				// 収束していたら
+				if(this.IsConverged)
+				{
+					// 繰り返し終了
+					break;
+				}
+				// なかったら
+				else
+				{
+					// 全デバイスで残りの計算を実行
 					/*
-					* Ap = A * p
-					* α = rr/(p・Ap)
-					* x' += αp
-					* r' -= αAp
-					* r'r' = r'・r'
-					*/
-					CsrMV(cusparse[DEVICE_ID], matDescr[DEVICE_ID], deviceID, Ap, elements, rowOffsets, columnIndeces, p, elementsCount, count, 1, 0);
-					double alpha = rr / Dot(cublas[DEVICE_ID], deviceID, p, Ap, count);
-					Axpy(cublas[DEVICE_ID], deviceID, x, p, count, alpha);
-					Axpy(cublas[DEVICE_ID], deviceID, r, Ap, count, -alpha);
-					double rrNew = Dot(cublas[DEVICE_ID], deviceID, r, r, count);
-
-					// 誤差を設定
-					Residual = System.Math.Sqrt(rrNew);
-
-					// 収束したら
-					if(IsConverged)
+					 * β= r'r'/rLDLr
+					 * p = r' + βp
+					 */
+					double beta = rrNew / rr;
+					Parallel.For(0, deviceCount, deviceID =>
 					{
-						// 繰り返し終了
-						break;
-					}
-					else
-					{
-						// 残りの計算を実行
-						/*
-						* β= r'r'/rLDLr
-						* p = r' + βp
-						*/
-						double beta = rrNew / rr;
-						Scal(cublas[DEVICE_ID], deviceID, p, beta, count); Axpy(cublas[DEVICE_ID], deviceID, p, r, count, 1);
+						SetDevice(deviceID);
 
-						rr = rrNew;
-					}
+						var blas = cublas[deviceID];
+						var x = vectorX[deviceID].Ptr;
+						var Ap = vectorAp[deviceID].Ptr;
+						var p = vectorP[deviceID].Ptr;
+						var r = vectorR[deviceID].Ptr;
+
+						var countForDevice = CountForDevice(deviceID);
+						var offsetForDevice = offsetsForDevice[deviceID];
+
+						Solve3(blas, beta,
+							p, r,
+							countForDevice, offsetForDevice);
+					});
+					rr = rrNew;
 				}
 			}
 		}
@@ -343,7 +569,28 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		public override void Read()
 		{
-			vectorX[DEVICE_ID].CopyTo(ref x, Count);
+			// 全デバイスで
+			Parallel.For(0, deviceCount, deviceID =>
+			{
+				SetDevice(deviceID);
+
+				var countForDevice = CountForDevice(deviceID);
+				var offsetForDevice = offsetsForDevice[deviceID];
+
+				// 結果を読み込む
+				vectorX[deviceID].CopyTo(ref x, countForDevice, offsetForDevice);
+			});
+		}
+
+		/// <summary>
+		/// このデバイスが計算する要素数を取得する
+		/// </summary>
+		/// <param name="deviceID">デバイス番号</param>
+		/// <returns>要素数</returns>
+		int CountForDevice(int deviceID)
+		{
+			// 範囲内なら、先頭位置の差を要素数とする
+			return (0 <= deviceID) && (deviceID < deviceCount) ? offsetsForDevice[deviceID + 1] - offsetsForDevice[deviceID] : 0;
 		}
 	}
 }

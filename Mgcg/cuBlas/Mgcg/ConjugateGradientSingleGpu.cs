@@ -79,7 +79,7 @@ namespace LWisteria.Mgcg
 		/// <param name="b"></param>
 		/// <param name="count"></param>
 		[DllImport(MgcgGpu.DLL_NAME, EntryPoint = "Solve")]
-		static extern void Solve(IntPtr cublas, IntPtr cusparse, IntPtr matDescr, int deviceID,
+		static extern void Solve(IntPtr cublas, IntPtr cusparse, IntPtr matDescr,
 			IntPtr elementsVector, IntPtr rowOffsetsVector, IntPtr columnIndecesVector,
 			IntPtr xVector, IntPtr bVector,
 			IntPtr ApVector, IntPtr pVector, IntPtr rVector,
@@ -99,21 +99,21 @@ namespace LWisteria.Mgcg
 			: base(count, maxNonZeroCount, _minIteration, _maxIteration, allowableResidual)
 		{
 			// cudaの使用準備
-			cublas = CreateBlas(DEVICE_ID);
-			cusparse = CreateSparse(DEVICE_ID);
-			matDescr = CreateMatDescr(DEVICE_ID);
+			cublas = CreateBlas();
+			cusparse = CreateSparse();
+			matDescr = CreateMatDescr();
 
 			// 行列を初期化
-			vectorA = new VectorDouble(count * maxNonZeroCount, DEVICE_ID);
-			vectorColumnIndeces = new VectorInt(count * maxNonZeroCount, DEVICE_ID);
-			vectorRowOffsets = new VectorInt(count + 1, DEVICE_ID);
+			vectorA = new VectorDouble(count * maxNonZeroCount);
+			vectorColumnIndeces = new VectorInt(count * maxNonZeroCount);
+			vectorRowOffsets = new VectorInt(count + 1);
 
 			// ベクトルを初期化
-			vectorX = new VectorDouble(count, DEVICE_ID);
-			vectorB = new VectorDouble(count, DEVICE_ID);
-			vectorAp = new VectorDouble(count, DEVICE_ID);
-			vectorP = new VectorDouble(count, DEVICE_ID);
-			vectorR = new VectorDouble(count, DEVICE_ID);
+			vectorX = new VectorDouble(count);
+			vectorB = new VectorDouble(count);
+			vectorAp = new VectorDouble(count);
+			vectorP = new VectorDouble(count);
+			vectorR = new VectorDouble(count);
 		}
 
 		/// <summary>
@@ -122,9 +122,9 @@ namespace LWisteria.Mgcg
 		~ConjugateGradientSingleGpu()
 		{
 			// cublasとcusparseを廃棄
-			DestroyBlas(cublas, DEVICE_ID);
-			DestroySparse(cusparse, DEVICE_ID);
-			DestroyMatDescr(matDescr, DEVICE_ID);
+			DestroyBlas(cublas);
+			DestroySparse(cusparse);
+			DestroyMatDescr(matDescr);
 		}
 
 
@@ -157,7 +157,7 @@ namespace LWisteria.Mgcg
 			// 方程式を解く
 			int iteration;
 			double residual;
-			Solve(cublas, cusparse, matDescr, DEVICE_ID,
+			Solve(cublas, cusparse, matDescr,
 				vectorA.Ptr, vectorRowOffsets.Ptr, vectorColumnIndeces.Ptr,
 				vectorX.Ptr, vectorB.Ptr,
 				vectorAp.Ptr, vectorP.Ptr, vectorR.Ptr,

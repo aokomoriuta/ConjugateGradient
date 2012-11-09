@@ -44,33 +44,29 @@ namespace LWisteria.Mgcg
 		/// </summary>
 		override public void Solve()
 		{
-			//this.x.SetAdded(this.x, this.b, 1);
-			//this.A.Multiply(this.x, this.b);
-			//return;
-
 			// 初期値を設定
 			/*
 			 * (Ap)_0 = A * x
 			 * r_0 = b - Ap
-			 * p_0 = (LDLr)_0
+			 * p_0 = r_0
+			 * rr_0 = r_0・r_0
 			 */
 			this.A.Multiply(this.Ap, this.x);
 			this.r.SetAdded(this.b, this.Ap, -1);
 			this.r.CopyTo(this.p, 0);
+			double rr = this.r.Dot(this.r);
 
 			// 収束しない間繰り返す
 			for(this.Iteration = 0; ; this.Iteration++)
 			{
 				// 計算を実行
 				/*
-				 * rr = r・r
 				 * Ap = A * p
 				 * α = rr/(p・Ap)
 				 * x' += αp
 				 * r' -= αAp
 				 * r'r' = r'・r'
 				 */
-				double rr = this.r.Dot(this.r);
 				this.A.Multiply(this.Ap, this.p);
 				double alpha = rr / this.p.Dot(this.Ap);
 				this.x.SetAdded(this.x, this.p, alpha);
@@ -96,6 +92,7 @@ namespace LWisteria.Mgcg
 					 */
 					double beta = rrNew / rr;
 					this.p.SetAdded(this.r, this.p, beta);
+					rr = rrNew;
 				}
 			}
 		}
