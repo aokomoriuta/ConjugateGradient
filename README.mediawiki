@@ -4,8 +4,6 @@
 ;URL
 : https://github.com/aokomoriuta
 
-See http://aokomoriuta.github.com/StudiesOfOpenTK/ for documantation.
-
 This project is multi-licensed.
 You can select the license of your choice from as following:
 * [http://creativecommons.org/licenses/by-sa/3.0/ Creative Commons Attribution-ShareAlike 3.0 Unported]
