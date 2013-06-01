@@ -1,8 +1,12 @@
-#include<thrust/version.h>
 #include<cuda_runtime_api.h>
 #include<cublas_v2.h>
 #include<cusparse_v2.h>
+
 #include<thrust/device_vector.h>
+#include<thrust/copy.h>
+
+#include<boost/timer.hpp>
+
 #include<iostream>
 
 void SolveGpu(
@@ -102,7 +106,7 @@ void SolveGpu(
 		residual = sqrt(rrNew);
 		converged = (minIteration < iteration) && (residual  < allowableResidual);
 
-		//std::cout << iteration << ": " << residual << std::endl;
+		std::cout << iteration << ": " << residual << std::endl;
 
 		// Žû‘©‚µ‚Ä‚¢‚È‚©‚Á‚½‚ç
 		if(!converged)
@@ -214,15 +218,23 @@ int main()
 	/********************************/
 	/********** ŒvŽZ‚ðŽÀs **********/
 	/********************************/
+	boost::timer timer;
 
 	// GPU‚Å‰ð‚­
 	int iterationGpu = 0;
 	double residualGpu = 0;
+	
+	timer.restart();
+
 	SolveGpu(elementsDevice, rowOffsetsDevice, columnIndecesDevice,
 		xDevice, bDevice,
 		nonZeroCount, N, ALLOWABLE_RESIDUAL, MIN_ITERATION, MAX_ITERATION,
 		iterationGpu, residualGpu);
 
+	std::cout << "GPU:" << std::endl
+	          << "	Iteration: " << iterationGpu << std::endl
+			  << "	Residual: " << residualGpu << std::endl
+			  << "	Time: " << timer.elapsed() << "[s]" << std::endl;
 
 	/************************************/
 	/********** ŒvŽZŒ‹‰Ê‚ðŽæ“¾ **********/
@@ -233,7 +245,7 @@ int main()
 	// Œ‹‰Ê‚Ì•\Ž¦
 	for(int i = 0; i < N; i++)
 	{
-		//std::cout << x[i] << std::endl;
+		std::cout << x[i] << std::endl;
 	}
 
 	return 0;
