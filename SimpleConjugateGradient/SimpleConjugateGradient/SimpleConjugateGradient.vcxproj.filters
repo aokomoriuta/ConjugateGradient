@@ -15,8 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SimpleConjugateGradient.cpp">
+    <CudaCompile Include="SimpleConjugateGradient.cu">
       <Filter>ソース ファイル</Filter>
-    </ClCompile>
+    </CudaCompile>
   </ItemGroup>
 </Project>
