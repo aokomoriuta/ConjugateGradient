@@ -19,4 +19,9 @@
       <Filter>ソース ファイル</Filter>
     </CudaCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SimpleConjugateGradientCpu.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>
