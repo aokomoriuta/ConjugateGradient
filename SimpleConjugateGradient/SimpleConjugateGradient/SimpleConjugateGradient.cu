@@ -106,7 +106,7 @@ void SolveGpu(
 		residual = sqrt(rrNew);
 		converged = (minIteration < iteration) && (residual  < allowableResidual);
 
-		std::cout << iteration << ": " << residual << std::endl;
+		//std::cout << iteration << ": " << residual << std::endl;
 
 		// Žû‘©‚µ‚Ä‚¢‚È‚©‚Á‚½‚ç
 		if(!converged)
@@ -127,11 +127,13 @@ void SolveGpu(
 
 int main()
 {
-	const int N = 10;
+	const int N = 1024 * 64;
 	const double ALLOWABLE_RESIDUAL = 1e-8;
 
 	const int MIN_ITERATION = 0;
 	const int MAX_ITERATION = N;
+
+	std::cout << "Solving liner equations with " << N  << " unknown variables" << std::endl;
 
 	/**********************************/
 	/********** “ü—Í’l‚Ì€”õ **********/
@@ -245,7 +247,7 @@ int main()
 	// Œ‹‰Ê‚Ì•\Ž¦
 	for(int i = 0; i < N; i++)
 	{
-		std::cout << x[i] << std::endl;
+		//std::cout << x[i] << std::endl;
 	}
 
 	return 0;
